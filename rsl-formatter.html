@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airtable to Word Export</title>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 24px;
+            background: #f4f6f8;
+            color: #202124;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+            padding: 28px;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.9rem;
+        }
+
+        label,
+        .help-text {
+            display: block;
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+
+        textarea {
+            width: 95%;
+            min-height: 260px;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+            font-size: 0.95rem;
+            resize: vertical;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .controls button,
+        .controls a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #1d4ed8;
+            border: none;
+            color: white;
+            padding: 12px 18px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .controls button:hover,
+        .controls a:hover {
+            background: #1e40af;
+        }
+
+        .options {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .options input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+
+        .output-mode {
+            margin-top: 16px;
+        }
+
+        .output-mode label {
+            margin-right: 16px;
+        }
+
+        /* Paragraph styles for table cells */
+        #livePreview .parent,
+        #livePreview .subsidiary,
+        #livePreview .parentSearch,
+        #livePreview .subsidiarySearch {
+            margin: 0 0 4px 0;
+        }
+        
+        #livePreview .parent,
+        #livePreview .subsidiary {
+            margin-top: 20px
+        }
+
+        #livePreview table td .parent,
+        #livePreview table td .subsidiary {
+            margin-top: 0;
+        }
+
+        #livePreview .subsidiary,
+        #livePreview .subsidiarySearch {
+            margin-left: 20px;
+        }
+
+        .status {
+            margin-top: 18px;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .note {
+            margin-top: 16px;
+            padding: 14px;
+            background: #eef2ff;
+            border-left: 4px solid #4338ca;
+            border-radius: 8px;
+        }
+    </style>
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:_dlc_DocId msdt:dt="string">F32Z6SUDRCHU-1614777465-79865</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">f4c857c9-14f5-49ba-a003-c78a382740da</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://solomonpagegroup.sharepoint.com/sites/HealthcareShare/_layouts/15/DocIdRedir.aspx?ID=F32Z6SUDRCHU-1614777465-79865, F32Z6SUDRCHU-1614777465-79865</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+<body>
+    <div class="container">
+        <h1>Relevant Search List formatter</h1>
+        <p class="help-text">Paste table data below. Format should be: <br>
+            • [column 1]: Company <br>
+            • [column 2]: Search </p>
+
+        <div class="options">
+            <label><input type="checkbox" id="hasHeader" /> Check this box if data includes header row.</label>
+        </div>
+        <textarea id="tableInput" placeholder="Paste rows here, separated by tabs or commas"></textarea>
+
+        <div class="options">
+            <label><input type="radio" name="outputMode" value="paragraph" checked /> Paragraph-style</label>
+            <label><input type="radio" name="outputMode" value="table" /> Table-style</label>
+        </div>
+
+        <div class="controls">
+            <button id="generateBtn">Generate Word Document</button>
+            <a id="downloadLink" style="display:none;" download="airtable-export.doc">Download Word Document</a>
+        </div>
+        <div class="controls">
+            <button id="resetBtn" style="background: #6b7280;">Reset</button>
+        </div>
+
+        <div id="previewContainer" class="note" style="display:none; background: white; border: 1px solid #ccc;">
+            <h3>[LIVE PREVIEW]</h3>
+            <div id="livePreview"></div>
+        </div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+    </div>
+
+    <script>
+        const tableInput = document.getElementById('tableInput');
+        const hasHeader = document.getElementById('hasHeader');
+        const generateBtn = document.getElementById('generateBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadLink = document.getElementById('downloadLink');
+        const status = document.getElementById('status');
+        const previewContainer = document.getElementById('previewContainer');
+
+        function cleanText(text) {
+            if (!text) return "";
+            
+            let processedText = text.trim();
+            if (processedText.startsWith('"') && processedText.endsWith('"')) {
+                processedText = processedText.substring(1, processedText.length - 1);
+            }
+
+            return processedText;
+        }
+
+        function parseRow(row) {
+            const tabParts = row.split('\t').map(cell => cell.trim());
+            if (tabParts.length > 1) {
+                return tabParts;
+            }
+
+            const commaParts = row.split(',').map(cell => cell.trim());
+            if (commaParts.length > 1) {
+                return commaParts;
+            }
+
+            const spaceParts = row.split(/\s{2,}|\s*,\s*/).map(cell => cell.trim()).filter(Boolean);
+            return spaceParts.length > 0 ? spaceParts : [row.trim()];
+        }
+
+        function normalizeRows(rawText) {
+            const lines = rawText
+                .split(/\r?\n/)
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (lines.length === 0) {
+                return [];
+            }
+
+            if (hasHeader.checked) {
+                lines.shift();
+            }
+
+            return lines.map(parseRow).map(row => {
+                if (row.length === 2) {
+                    return [row[0], row[0], row[1]];
+                }
+                return row.slice(0, 3); // Ensure 3 columns
+            }).filter(row => row.length > 0);
+        }
+
+        function buildWordContentHTML(rows, outputMode) {
+            let content = '';
+            let lastParent = null;
+            let lastClient = null;
+            let currentSearchStyle = "parentSearch";
+            let currentRowContent = "";
+
+            function finishCurrentTableRow() {
+                if (!currentRowContent) return;
+                content += `<tr><td>${currentRowContent}</td></tr>\n`;
+                currentRowContent = "";
+            }
+
+            function appendSearchLine(searchText) {
+                if (outputMode === "table") {
+                    currentRowContent += `<p class="${currentSearchStyle}">${escapeHtml(searchText)}</p>`;
+                } else {
+                    content += `<p class="${currentSearchStyle}">${escapeHtml(searchText)}</p>\n`;
+                }
+            }
+
+            rows.forEach(row => {
+                const parent = cleanText(row[0]);
+                const client = cleanText(row[1]);
+                const searchDisplay = cleanText(row[2]);
+
+                if (parent !== lastParent) {
+                    if (outputMode === "table") {
+                        if (client !== lastClient && client !== parent) {
+                            // do nothing
+                        } else {
+                            finishCurrentTableRow();
+                            currentRowContent = `<p class="parent"><b>${escapeHtml(parent)}</b></p>`;
+                        }
+                    } else {
+                        content += `<p class="parent"><b>${escapeHtml(parent)}</b></p>\n`;
+                    }
+                    lastParent = parent;
+                    lastClient = null;
+                    currentSearchStyle = "parentSearch";
+                }
+
+                if (client !== lastClient && client !== parent) {
+                    if (outputMode === "table") {
+                        finishCurrentTableRow();
+                        currentRowContent = `<p class="parent"><b>${escapeHtml(parent)}: ${escapeHtml(client)}</b></p>`;
+                        currentSearchStyle = "parentSearch";
+                    } else {
+                        content += `<p class="subsidiary"><b>${escapeHtml(client)}</b></p>\n`;
+                        currentSearchStyle = "subsidiarySearch";
+                    }
+                    lastClient = client;
+                }
+
+                appendSearchLine(searchDisplay);
+            });
+
+            if (outputMode === "table") {
+                finishCurrentTableRow();
+                content = `<table border="1" style="border-collapse: collapse; width: 100%;">${content}</table>`;
+            }
+
+            return content;
+        }
+
+        function buildWordDocx(rows, outputMode) {
+            const styles = {
+                paragraphStyles: [
+                    {
+                        id: "parent",
+                        name: "parent",
+                        basedOn: "Normal",
+                        next: "Normal",
+                        quickFormat: true,
+                        run: {
+                            bold: true,
+                        },
+                    },
+                    {
+                        id: "subsidiary",
+                        name: "subsidiary",
+                        basedOn: "Normal",
+                        next: "Normal",
+                        quickFormat: true,
+                        run: {
+                            bold: true,
+                        },
+                        paragraph: {
+                            indent: { left: 180 },
+                        },
+                    },
+                    {
+                        id: "parentSearch",
+                        name: "parentSearch",
+                        basedOn: "Normal",
+                        next: "Normal",
+                        quickFormat: true,
+                    },
+                    {
+                        id: "subsidiarySearch",
+                        name: "subsidiarySearch",
+                        basedOn: "Normal",
+                        next: "Normal",
+                        quickFormat: true,
+                        paragraph: {
+                            indent: { left: 180 },
+                        },
+                    },
+                ],
+            };
+
+            const paragraphs = [];
+            const tableRows = [];
+            let lastParent = null;
+            let lastClient = null;
+            let currentSearchStyle = "parentSearch";
+            let currentRowContent = [];
+
+            function finishCurrentTableRow() {
+                if (currentRowContent.length === 0) return;
+                const children = currentRowContent.map((text, index) => {
+                    const cleanText = text.replace(/<b>/g, '').replace(/<\/b>/g, '');
+                    return new docx.Paragraph({
+                        children: [new docx.TextRun({ text: cleanText, bold: index === 0 })],
+                    });
+                });
+                const cell = new docx.TableCell({ children });
+                tableRows.push(new docx.TableRow({ children: [cell] }));
+                currentRowContent = [];
+            }
+
+            function appendSearchLine(searchText) {
+                if (outputMode === "table") {
+                    currentRowContent.push(searchText);
+                } else {
+                    paragraphs.push(new docx.Paragraph({
+                        style: currentSearchStyle,
+                        children: [new docx.TextRun(searchText)],
+                    }));
+                }
+            }
+
+            rows.forEach(row => {
+                const parent = cleanText(row[0]);
+                const client = cleanText(row[1]);
+                const searchDisplay = cleanText(row[2]);
+
+                if (parent !== lastParent) {
+                    if (outputMode === "table") {
+                        if (client !== lastClient && client !== parent) {
+                            // do nothing
+                        } else {
+                            finishCurrentTableRow();
+                            currentRowContent = [`<b>${parent}</b>`];
+                        }
+                    } else {
+                        paragraphs.push(new docx.Paragraph({
+                            style: "parent",
+                            children: [new docx.TextRun(parent)],
+                        }));
+                    }
+                    lastParent = parent;
+                    lastClient = null;
+                    currentSearchStyle = "parentSearch";
+                }
+
+                if (client !== lastClient && client !== parent) {
+                    if (outputMode === "table") {
+                        finishCurrentTableRow();
+                        currentRowContent = [`<b>${parent}: ${client}</b>`];
+                    } else {
+                        paragraphs.push(new docx.Paragraph({
+                            style: "subsidiary",
+                            children: [new docx.TextRun(client)],
+                        }));
+                    }
+                    lastClient = client;
+                    currentSearchStyle = "subsidiarySearch";
+                }
+
+                appendSearchLine(searchDisplay);
+            });
+
+            if (outputMode === "table") {
+                finishCurrentTableRow();
+                const table = new docx.Table({
+                    rows: tableRows,
+                });
+                return new docx.Document({
+                    styles: styles,
+                    sections: [{
+                        children: [table],
+                    }],
+                });
+            } else {
+                return new docx.Document({
+                    styles: styles,
+                    sections: [{
+                        children: paragraphs,
+                    }],
+                });
+            }
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function createRealDocxFile(rows, outputMode) {
+            const doc = buildWordDocx(rows, outputMode);
+            docx.Packer.toBlob(doc).then(blob => {
+                const url = URL.createObjectURL(blob);
+                downloadLink.href = url;
+                downloadLink.download = 'airtable-export.docx';
+                downloadLink.style.display = 'inline-flex';
+                downloadLink.textContent = 'Download Word Document (.docx)';
+                downloadLink.click();
+
+            });
+        }
+
+        function updatePreview() {
+            const rawText = tableInput.value.trim();
+            const previewArea = document.getElementById('livePreview');
+
+            if (!rawText) {
+                previewContainer.style.display = 'none';
+                status.textContent = '';
+                return;
+            }
+
+            const rows = normalizeRows(rawText);
+            if (rows.length === 0) {
+                previewContainer.style.display = 'none';
+                status.textContent = '';
+                return;
+            }
+
+            const outputMode = document.querySelector('input[name="outputMode"]:checked').value;
+            const wordContentHTML = buildWordContentHTML(rows, outputMode);
+            previewArea.innerHTML = wordContentHTML;
+            previewContainer.style.display = 'block';
+        }
+
+        generateBtn.addEventListener('click', () => {
+            status.textContent = '';
+            downloadLink.style.display = 'none';
+
+            const rawText = tableInput.value.trim();
+            if (!rawText) {
+                status.textContent = 'Please paste your table data before generating the document.';
+                return;
+            }
+
+            const rows = normalizeRows(rawText);
+            if (rows.length === 0) {
+                status.textContent = 'No valid rows were found in the pasted data.';
+                return;
+            }
+
+            const outputMode = document.querySelector('input[name="outputMode"]:checked').value;
+            createRealDocxFile(rows, outputMode);
+            status.textContent = 'Word document ready. Use the download link if auto-download does not start.';
+        });
+
+        tableInput.addEventListener('input', updatePreview);
+
+        document.querySelectorAll('input[name="outputMode"]').forEach(radio => {
+            radio.addEventListener('change', updatePreview);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            tableInput.value = '';
+            hasHeader.checked = false;
+            document.querySelector('input[name="outputMode"][value="paragraph"]').checked = true;
+            downloadLink.style.display = 'none';
+            previewContainer.style.display = 'none';
+            status.textContent = '';
+        });
+    </script>
+</body>
+</html>
