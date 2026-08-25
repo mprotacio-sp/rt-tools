@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transcript Formatter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1612;
+    --paper: #f5f0e8;
+    --paper-dark: #ede7d9;
+    --rust: #b84c2b;
+    --rust-light: #d4694a;
+    --sage: #4a5e4e;
+    --muted: #8a7f72;
+    --border: #c8bfb0;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'DM Mono', monospace;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 2.6rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  header h1 span {
+    color: var(--rust);
+    font-style: italic;
+  }
+
+  header p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #dropzone {
+    width: 100%;
+    max-width: 640px;
+    border: 2px dashed var(--border);
+    border-radius: 4px;
+    background: var(--paper-dark);
+    padding: 4rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    position: relative;
+    outline: none;
+  }
+
+  #dropzone:hover, #dropzone.dragover {
+    border-color: var(--rust);
+    background: #ede0d4;
+    transform: translateY(-2px);
+  }
+
+  #dropzone.dragover {
+    border-style: solid;
+  }
+
+  .drop-icon {
+    display: block;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    line-height: 1;
+  }
+
+  .drop-label {
+    font-family: 'Fraunces', serif;
+    font-size: 1.25rem;
+    font-weight: 300;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+  }
+
+  .drop-sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  #file-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Status area */
+  #status {
+    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 640px;
+    display: none;
+  }
+
+  .status-card {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 4px;
+    padding: 1.2rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+  }
+
+  .status-card.success { background: var(--sage); }
+  .status-card.error { background: var(--rust); }
+  .status-card.working { background: var(--ink); }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .status-text { flex: 1; }
+  .status-text strong { display: block; margin-bottom: 0.1rem; }
+  .status-text small { opacity: 0.75; font-size: 0.68rem; }
+
+  #copy-btn {
+    background: transparent;
+    border: 1.5px solid rgba(255,255,255,0.5);
+    color: white;
+    padding: 0.4rem 0.9rem;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #copy-btn:hover { background: rgba(255,255,255,0.15); border-color: white; }
+  #copy-btn:active { background: rgba(255,255,255,0.25); }
+  #copy-btn.copied { border-color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.15); }
+
+  footer {
+    margin-top: 2.5rem;
+    font-size: 0.65rem;
+    color: var(--border);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+</style>
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:_dlc_DocId msdt:dt="string">F32Z6SUDRCHU-1614777465-80816</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">ef6fdb78-af86-4ab6-b971-0e4f8cec2034</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://solomonpagegroup.sharepoint.com/sites/HealthcareShare/_layouts/15/DocIdRedir.aspx?ID=F32Z6SUDRCHU-1614777465-80816, F32Z6SUDRCHU-1614777465-80816</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+<body>
+
+<header>
+  <h1>Transcript <span>Formatter</span></h1>
+  <p>Clean &amp; copy for Word</p>
+</header>
+
+<div id="dropzone" tabindex="0" role="button" aria-label="Drop transcript file here">
+  <input type="file" id="file-input" accept=".txt,.md" aria-hidden="true">
+  <span class="drop-icon">📄</span>
+  <div class="drop-label">Drop your transcript here</div>
+  <div class="drop-sub">.txt or .md &nbsp;·&nbsp; click to browse</div>
+</div>
+
+<div id="status"></div>
+
+<footer>removes timestamps &nbsp;·&nbsp; collapses speaker paragraphs &nbsp;·&nbsp; copies rich text</footer>
+
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const statusEl = document.getElementById('status');
+
+  let formattedHTML = '';
+
+  // Drag events
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+  });
+
+  function handleFile(file) {
+    if (!file.name.match(/\.(txt|md)$/i)) {
+      showStatus('error', '⚠', 'Unsupported file type', 'Please drop a .txt or .md file');
+      return;
+    }
+
+    showStatus('working', null, 'Processing…', `Reading ${file.name}`);
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const raw = e.target.result;
+      try {
+        const result = processTranscript(raw);
+        formattedHTML = result.html;
+        showStatus('success', '✓', 'Ready to paste', `${result.speakers} speakers · ${result.blocks} paragraphs`, true);
+      } catch (err) {
+        showStatus('error', '⚠', 'Processing failed', err.message);
+      }
+    };
+    reader.onerror = () => showStatus('error', '⚠', 'Could not read file', 'Try again');
+    reader.readAsText(file);
+  }
+
+  function processTranscript(text) {
+    const lines = text.split('\n');
+    // Timestamp pattern: HH:MM:SS or MM:SS at line start
+    const timestampRe = /^\d{1,2}:\d{2}(?::\d{2})?\s+/;
+
+    // Split into front-matter (everything before the first transcript line) and transcript lines
+    // Front-matter: lines that are headers (# ...) or plain text, UNTIL we hit timestamp lines
+    // We detect transcript section by presence of timestamp lines
+    const hasTimestamps = lines.some(l => timestampRe.test(l.trim()));
+
+    if (!hasTimestamps) {
+      throw new Error('No timestamps found — is this a transcript file?');
+    }
+
+    // Find where transcript content starts (first line with a timestamp)
+    let transcriptStart = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (timestampRe.test(lines[i].trim())) { transcriptStart = i; break; }
+    }
+
+    const frontLines = lines.slice(0, transcriptStart);
+    const transcriptLines = lines.slice(transcriptStart);
+
+    // Parse transcript lines into {speaker, text} utterances
+    const utterances = [];
+    let currentSpeaker = null;
+    let currentText = [];
+
+    for (const line of transcriptLines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      // Check if this is a "timestamp speaker" line
+      const tsMatch = trimmed.match(/^(\d{1,2}:\d{2}(?::\d{2})?)\s+(.+)$/);
+      if (tsMatch) {
+        // Next line(s) will be speech, OR the remainder after the name IS the speech
+        // Check if the part after timestamp is a name (no sentence-ending punctuation mid-string, title-case-ish)
+        // We treat everything after the timestamp as the speaker name if the NEXT non-empty line is speech
+        // Strategy: if line immediately following is also timestamp → this line = "timestamp + name"
+        // Simpler: collect (speaker, speech) by treating timestamp lines as speaker ID lines
+        const possibleSpeaker = tsMatch[2].trimEnd();
+        if (currentSpeaker !== null || currentText.length > 0) {
+          if (currentText.length > 0) {
+            utterances.push({ speaker: currentSpeaker, text: currentText.join(' ').trim() });
+          }
+          currentText = [];
+        }
+        currentSpeaker = possibleSpeaker;
+        currentText = [];
+      } else {
+        // It's a speech line
+        currentText.push(trimmed);
+      }
+    }
+
+    if (currentSpeaker && currentText.length > 0) {
+      utterances.push({ speaker: currentSpeaker, text: currentText.join(' ').trim() });
+    }
+
+    // Collapse consecutive same-speaker utterances
+    const collapsed = [];
+    for (const u of utterances) {
+      if (!u.text) continue;
+      if (collapsed.length > 0 && collapsed[collapsed.length - 1].speaker === u.speaker) {
+        collapsed[collapsed.length - 1].text += ' ' + u.text;
+      } else {
+        collapsed.push({ speaker: u.speaker, text: u.text });
+      }
+    }
+
+    const speakerSet = new Set(collapsed.map(u => u.speaker));
+
+    // Build HTML for clipboard (rich text Word-paste)
+    // Front-matter: render markdown-ish headers
+    const frontHTML = frontLines.map(l => {
+      const h2 = l.match(/^##\s+(.*)/);
+      const h1 = l.match(/^#\s+(.*)/);
+      if (h1) return `<h1>${esc(h1[1])}</h1>`;
+      if (h2) return `<h2>${esc(h2[1])}</h2>`;
+      if (l.trim() === '') return '';
+      return `<p>${esc(l)}</p>`;
+    }).filter(Boolean).join('\n');
+
+    const transcriptHTML = collapsed.map(u =>
+      `<p><strong>${esc(u.speaker.trimEnd())}</strong><br>${esc(u.text.trimEnd())}</p>`
+    ).join('\n');
+
+    const html = `<div>${frontHTML}\n${transcriptHTML}</div>`;
+
+    return { html, speakers: speakerSet.size, blocks: collapsed.length };
+  }
+
+  function esc(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showStatus(type, icon, title, sub, showCopy = false) {
+    statusEl.style.display = 'block';
+
+    let spinnerHTML = '';
+    let iconHTML = '';
+    if (type === 'working') {
+      spinnerHTML = `<div class="spinner"></div>`;
+    } else {
+      iconHTML = `<div class="status-icon">${icon}</div>`;
+    }
+
+    const copyBtn = showCopy
+      ? `<button id="copy-btn" onclick="copyToClipboard()">Copy</button>`
+      : '';
+
+    statusEl.innerHTML = `
+      <div class="status-card ${type}">
+        ${spinnerHTML}${iconHTML}
+        <div class="status-text">
+          <strong>${title}</strong>
+          <small>${sub}</small>
+        </div>
+        ${copyBtn}
+      </div>`;
+  }
+
+  async function copyToClipboard() {
+    const btn = document.getElementById('copy-btn');
+    if (!formattedHTML) return;
+
+    try {
+      // Write rich text (HTML) to clipboard so Word gets bold formatting
+      const blob = new Blob([formattedHTML], { type: 'text/html' });
+      const item = new ClipboardItem({ 'text/html': blob });
+      await navigator.clipboard.write([item]);
+
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        if (btn) { btn.textContent = 'Copy'; btn.classList.remove('copied'); }
+      }, 2500);
+    } catch (err) {
+      // Fallback: plain text
+      try {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = formattedHTML;
+        await navigator.clipboard.writeText(tmp.innerText);
+        btn.textContent = 'Copied (plain)';
+        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2500);
+      } catch {
+        btn.textContent = 'Failed';
+        setTimeout(() => { if (btn) btn.textContent = 'Copy'; }, 2500);
+      }
+    }
+  }
+</script>
+</body>
+</html>

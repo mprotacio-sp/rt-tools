@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brochure/Deck Filename Generator</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--primary);
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; text-transform: lowercase; }
+        h2 { font-size: 1.2rem; margin-top: 30px; color: var(--accent); }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        select, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        #instructions-section {
+            background: #fff9c4;
+            padding: 15px;
+            border-left: 5px solid #fbc02d;
+            margin-bottom: 20px;
+            display: none; /* Hidden by default */
+        }
+
+        .output-box {
+            background: #eef2f3;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px dashed #999;
+            margin-top: 10px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 1.1rem;
+            min-height: 1.5em;
+        }
+
+        .actions { margin-top: 15px; display: flex; gap: 10px; align-items: center; }
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #2980b9; }
+        .copy-status { color: #27ae60; font-weight: bold; opacity: 0; transition: opacity 0.3s; }
+    </style>
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:_dlc_DocId msdt:dt="string">F32Z6SUDRCHU-1614777465-79866</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">8856d18f-6f96-4006-88c6-dd62819f8b58</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://solomonpagegroup.sharepoint.com/sites/HealthcareShare/_layouts/15/DocIdRedir.aspx?ID=F32Z6SUDRCHU-1614777465-79866, F32Z6SUDRCHU-1614777465-79866</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+<body>
+
+<div class="container">
+    <h1>brochure/deck filename generator</h1>
+    
+    <section>
+        <h2>instructions</h2>
+        <p>Select the appropriate variant or enter a custom title. Fill in the client name and your initials. The filename will generate automatically and can be copied to your clipboard with one click.</p>
+    </section>
+
+    <div id="instructions-section">
+        <strong>Variant Instructions:</strong>
+        <p id="variant-text"></p>
+    </div>
+
+    <section>
+        <h2>user input/dropdowns</h2>
+        
+        <div class="form-group">
+            <label for="variant">Brochure Variant</label>
+            <select id="variant">
+                <option value="[GENERIC]">[GENERIC]</option>
+                <option value="Health Insurance & Healthcare Practice">Health Insurance & Healthcare Practice</option>
+                <option value="Hospital & Integrated Delivery System Practice">Hospital & Integrated Delivery System Practice</option>
+                <option value="Managed Care & Health Insurance Practice">Managed Care & Health Insurance Practice</option>
+                <option value="Medical Director & Physician Executive Practice">Medical Director & Physician Executive Practice</option>
+                <option value="Sales, Marketing, & Business Development Practice">Sales, Marketing, & Business Development Practice</option>
+                <option value="Venture Capital & Private Equity-Backed Projects">Venture Capital & Private Equity-Backed Projects</option>
+                <option value="Finance, Accounting, & Actuarial Services Practice">Finance, Accounting, & Actuarial Services Practice</option>
+                <option value="Point Solutions Vendor Practice">Point Solutions Vendor Practice</option>
+                <option value="Pharmacy Solutions Practice">Pharmacy Solutions Practice</option>
+                <option value="Government Programs Practice">Government Programs Practice</option>
+                <option value="Sales, Business Development, & Account Management Practice">Sales, Business Development, & Account Management Practice</option>
+                <option value="Life Sciences">Life Sciences</option>
+                <option value="Actuarial Services Practice">Actuarial Services Practice</option>
+                <option value="Claims, Customer Service, & Operations Practice">Claims, Customer Service, & Operations Practice</option>
+                <option value="Compliance Practice">Compliance Practice</option>
+                <option value="Group Insurance & Employee Benefits Practice">Group Insurance & Employee Benefits Practice</option>
+                <option value="Information Technology, Analytics, Informatics, & Data Practice">Information Technology, Analytics, Informatics, & Data Practice</option>
+                <option value="Mental & Behavioral Health Practice">Mental & Behavioral Health Practice</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="customTitle">Custom Title (Overrides Variant Selection)</label>
+            <input type="text" id="customTitle" placeholder="e.g. Interim Leadership Solutions">
+        </div>
+
+        <div class="form-group">
+            <label for="client">Prepared for (Client Name)</label>
+            <input type="text" id="client" placeholder="e.g. BlueCross BlueShield">
+        </div>
+
+        <div class="form-group">
+            <label for="initials">Recruiter Initials</label>
+            <input type="text" id="initials" placeholder="e.g. JD/AS">
+        </div>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>output</h2>
+        <div class="output-box" id="outputFilename"></div>
+        <div class="actions">
+            <button onclick="copyToClipboard()">Copy to Clipboard</button>
+            <span class="copy-status" id="copyStatus">Copied!</span>
+        </div>
+    </section>
+</div>
+
+<script>
+    // Config for dynamic instructions
+    // Add keys here matching the dropdown values to show messages
+    const variantInstructions = {
+        // "Life Sciences": "Remember to use the global branding deck for Life Sciences.",
+    };
+
+    const variantEl = document.getElementById('variant');
+    const customTitleEl = document.getElementById('customTitle');
+    const clientEl = document.getElementById('client');
+    const initialsEl = document.getElementById('initials');
+    const outputEl = document.getElementById('outputFilename');
+    const instructionsSection = document.getElementById('instructions-section');
+    const variantText = document.getElementById('variant-text');
+
+    function generateFilename() {
+        const year = new Date().getFullYear();
+        const variant = variantEl.value;
+        const customTitle = customTitleEl.value.trim();
+        const client = clientEl.value.trim();
+        const initials = initialsEl.value.trim();
+
+        let segment1 = "";
+        
+        // Logic Part 1: Title & Variant
+        if (customTitle) {
+            segment1 = `Solomon Page HC&LS – ${customTitle} – `;
+        } else {
+            if (variant === "[GENERIC]") {
+                segment1 = "Solomon Page Healthcare & Life Sciences – ";
+            } else {
+                segment1 = `Solomon Page HC&LS – ${variant} – `;
+            }
+        }
+
+        // Logic Part 2: Client
+        let segment2 = "";
+        if (client) {
+            segment2 = `Prepared for ${client} – `;
+        }
+
+        // Logic Part 3: Year and Initials
+        const segment3 = `${year} ${initials}`;
+
+        const finalName = (segment1 + segment2 + segment3).trim();
+        outputEl.innerText = finalName;
+
+        // Handle Dynamic Instructions
+        if (variantInstructions[variant]) {
+            variantText.innerText = variantInstructions[variant];
+            instructionsSection.style.display = 'block';
+        } else {
+            instructionsSection.style.display = 'none';
+        }
+    }
+
+    async function copyToClipboard() {
+        const text = outputEl.innerText;
+        if (!text) return;
+        
+        try {
+            await navigator.clipboard.writeText(text);
+            const status = document.getElementById('copyStatus');
+            status.style.opacity = '1';
+            setTimeout(() => status.style.opacity = '0', 2000);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+        }
+    }
+
+    // Event Listeners
+    [variantEl, customTitleEl, clientEl, initialsEl].forEach(el => {
+        el.addEventListener('input', generateFilename);
+    });
+
+    // Run once on load
+    generateFilename();
+</script>
+
+</body>
+</html>

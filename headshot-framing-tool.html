@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en" xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Headshot Framer — single-file (vector overlay)</title>
+<style>
+  :root{--bg:#f3f4f6;--panel:#fff;--accent:#0b5fff;--muted:#6b7280;}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  body{background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:24px;}
+  .app{display:grid;grid-template-columns:640px 360px;gap:20px;width:100%;max-width:1024px;}
+  .canvas-wrap{background:var(--panel);padding:16px;border-radius:12px;box-shadow:0 6px 22px rgba(15,23,42,0.06);}
+  .controls{background:var(--panel);padding:16px;border-radius:12px;box-shadow:0 6px 22px rgba(15,23,42,0.06);height:fit-content;}
+  canvas{width:600px;height:600px;background:transparent;border-radius:8px;display:block;cursor:grab;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+  button, input[type="color"], select{padding:8px 10px;border-radius:8px;border:1px solid #e6e7ea;background:white;cursor:pointer;}
+  .btn {display:inline-flex;align-items:center;gap:8px}
+  .small{font-size:13px;padding:6px 8px}
+  .group{margin-bottom:12px}
+  .color-button {display: inline-block;width: 80%;height: 50px;border-radius: 4px;border: 1px solid #ccc;overflow: hidden;position: relative;}
+  .color-button input[type="color"] {position: absolute;top: 0; left: 0;width: 100%;height: 100%;border: none;padding: 1;cursor: pointer;}
+  .color-emoji {z-index: 2;}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .row{display:flex;gap:8px;align-items:center}
+  .value{font-weight:600;margin-left:6px;color:var(--accent)}
+  .controls h3{margin:0 0 8px 0;font-size:16px}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  input[type=file]{display:none}
+  .file-label{padding: 6px 8px;position: relative;top: 3px; display:inline-flex;align-items:center;justify-content:center;border:1px dashed #e6e7ea;border-radius:8px;line-height: 1;}
+  .numeric{width:80px;padding:6px;border-radius:6px;border:1px solid #e6e7ea}
+  .title {font-weight:700;margin-bottom:6px}
+</style>
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:_dlc_DocId msdt:dt="string">F32Z6SUDRCHU-1614777465-79932</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">a73368ef-2593-449e-b282-f685fd5d7083</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://solomonpagegroup.sharepoint.com/sites/HealthcareShare/_layouts/15/DocIdRedir.aspx?ID=F32Z6SUDRCHU-1614777465-79932, F32Z6SUDRCHU-1614777465-79932</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+<body>
+<div class="app" role="application" aria-label="Headshot framer">
+  <div class="canvas-wrap">
+    <div class="toolbar">
+      <div style="flex:1"></div>
+      <button id="fitBtn" class="small">Fit to frame</button>
+      <button id="resetBtn" class="small">Reset</button>
+    </div>
+    
+    <canvas id="preview" width="600" height="600" aria-label="Preview canvas"></canvas>
+    
+    <!-- <div class="note">Drag the image to reposition. Use arrows or slider for rotation/scale. Overlay is a guide only (not exported).</div> -->
+  </div>
+  
+  <aside class="controls" aria-label="Controls">
+    <h3>Input Image</h3>
+      <div class="toolbar">
+        <label class="file-label btn small" title="Upload image">Upload
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp">
+        </label>
+        <button id="pasteBtn" class="btn small" title="Paste image from clipboard (Ctrl/Cmd+V)">Paste (Ctrl/Cmd+V)</button>
+      </div>
+
+    <div class="group">
+      <h3>Transform</h3>
+      
+      <label>Rotate</label>
+      <div class="row" style="align-items:center">
+        <button id="rotDec" class="small">◀︎</button>
+        <button id="rotInc" class="small">▶︎</button>
+        <input id="rotDisplay" class="numeric" readonly value="0.0">
+        <input id="rotRange" type="range" min="-180" max="180" step="1" style="flex:1">
+      </div>
+      
+      <label style="margin-top:8px">Scale (zoom)</label>
+      <div class="row">
+        <button id="scaleDec" class="small">−</button>
+        <button id="scaleInc" class="small">+</button>
+        <input id="scaleDisplay" class="numeric" readonly value="1.00">
+        <input id="scaleRange" type="range" min="0.1" max="10" step="0.01" style="flex:1">
+      </div>
+      
+      <label style="margin-top:8px">Nudge / arrow moves (px)</label>
+      <div class="row">
+        <button id="leftBtn" class="small">←</button>
+        <button id="downBtn" class="small">↓</button>
+        <button id="upBtn" class="small">↑</button>
+        <button id="rightBtn" class="small">→</button>
+        <input id="nudgePx" class="numeric" value="5">
+      </div>
+
+      <label style="margin-top:12px">Alignment Guide Transparency</label>
+      <div class="group">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="vectorOpacity" type="range" min="0" max="1" step="0.01" value="0.45" style="flex:1">
+          <span id="vectorVal" class="value">0.45</span>
+        </div>
+        <div class="note">Feel free to adjust this if the guide is distracting or the image is unconventionally framed. <br> NOTE: Guide will NOT be visible in exported image.</div>
+      </div>
+    </div>
+
+    <h3>Background Color (optional)</h3>
+
+    <div class="group">
+      <label>If the edge of the photo is visible inside the circular frame, click the below swatch, then either (A) select a neutral background color or (B) use the eyedropper tool to match the photo's background color.</label>
+      <div class="row">
+        <label for="bgColor" class="color-button">
+          <span class="color-emoji" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; pointer-events: none;">🎨</span>
+          <input id="bgColor" type="color" value="#ffffff">
+        </label>
+      </div>
+    </div>
+
+
+    <div class="group">
+      <h3>Output</h3>
+      <div class="row" style="margin-bottom:8px">
+        <label>Export size:</label>
+        <select id="exportSize" class="numeric" style="width:fit-content">
+          <option value="600">600 × 600 (default)</option>
+          <option value="300">300 × 300</option>
+          <option value="1200">1200 × 1200</option>
+        </select>
+      </div>
+<!-- 
+      <div class="group">
+        <label for="exportMask">Mask options:</label>
+        <select id="exportMask">
+          <option value="unmasked"selected>disable mask (show area outside of circle)</option>
+          <option value="masked">mask output (hide area outside of circle)</option>
+        </select>
+      </div>
+ -->
+      <div class="row" style="margin-bottom:8px">
+        <button id="downloadBtn" class="btn small">Download PNG</button>
+        <button id="copyBtn" class="btn small">Copy to clipboard</button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/*
+  Headshot Framer — single-file
+  Updates:
+  - createImageBitmap / image.decode used to avoid InvalidStateError on paste.
+  - vector silhouette guide drawn via `drawVectorGuide` (not exported).
+  - export uses a separate offscreen canvas and excludes the guide.
+  - rotation slider (-180..180) and scale slider added.
+*/
+
+/* CONFIG */
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const canvasSize = 600;
+const circle = { x: canvasSize/2, y: canvasSize/2, r: Math.min(canvasSize, canvasSize)/2 }; // circle frame/mask
+const ROT_STEP_FINE = 0.1;
+const SCALE_STEP_FINE = 0.02;
+
+/* DOM refs */
+const preview = document.getElementById('preview');
+const ctx = preview.getContext('2d', { alpha: true });
+
+const fileInput = document.getElementById('fileInput');
+const pasteBtn = document.getElementById('pasteBtn');
+const fitBtn = document.getElementById('fitBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+const rotDec = document.getElementById('rotDec');
+const rotInc = document.getElementById('rotInc');
+const rotRange = document.getElementById('rotRange');
+const rotDisplay = document.getElementById('rotDisplay');
+
+const scaleDec = document.getElementById('scaleDec');
+const scaleInc = document.getElementById('scaleInc');
+const scaleDisplay = document.getElementById('scaleDisplay');
+const scaleRange = document.getElementById('scaleRange');
+
+const upBtn = document.getElementById('upBtn');
+const downBtn = document.getElementById('downBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const nudgePx = document.getElementById('nudgePx');
+
+const bgColor = document.getElementById('bgColor');
+
+// const exportMask = document.getElementById('exportMask');
+
+const vectorOpacity = document.getElementById('vectorOpacity');
+const vectorVal = document.getElementById('vectorVal');
+// const toggleVector = document.getElementById('toggleVector');
+
+const downloadBtn = document.getElementById('downloadBtn');
+const copyBtn = document.getElementById('copyBtn');
+const exportSize = document.getElementById('exportSize');
+
+/* STATE */
+let srcBitmap = null; // ImageBitmap (fast to draw)
+let state = {
+  angleDeg: 0.0,
+  scale: 1.0,
+  tx: 0,
+  ty: 0,
+  vectorOn: true,
+  vectorOpacity: parseFloat(vectorOpacity.value),
+  bgColor: bgColor.value
+};
+/* 
+let maskMode = "unmasked"; // or "masked"
+
+document.getElementById("exportMask").addEventListener("change", (e) => {
+  maskMode = e.target.value;
+  drawPreview();
+});
+ */
+
+/* Helpers */
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function deg2rad(d){return d*Math.PI/180;}
+function setDisplays(){
+  rotDisplay.value = state.angleDeg.toFixed(1);
+  scaleDisplay.value = state.scale.toFixed(2);
+  rotRange.value = Math.round(state.angleDeg);
+  scaleRange.value = state.scale;
+  vectorVal.textContent = state.vectorOpacity.toFixed(2);
+}
+
+/* draw vector guide path (head-and-shoulders silhouette).
+   Drawing coordinates use the canvas size (w,h).
+*/
+function drawVectorGuide(ctx, w, h){
+  // This draws a simple head+shoulders silhouette centered in the circle.
+  // Coordinates approximate a pleasing silhouette within the circle radius.
+  const cx = w/2, cy = h/2, r = circle.r;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1.5, 1.5);
+  // head
+  ctx.beginPath();
+  ctx.ellipse(0, -45, 110, 165, 0, 0, Math.PI * 2); // head
+  ctx.moveTo(-150, 150); // shoulder start point
+  ctx.quadraticCurveTo(0, 70, 150, 150); // shoulders
+  ctx.closePath();
+  // We only want stroke (guide), not fill for the overlay; caller will set alpha if desired.
+  ctx.restore();
+}
+
+/* draw preview: background (in circle), image, then optional vector guide (transparent) */
+function draw(){
+  ctx.clearRect(0,0,canvasSize,canvasSize);
+
+  /*   
+  if (maskMode === "masked") {
+    // --- Masked Mode: background & image confined to circular frame ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(circle.x, circle.y, circle.r, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+  }
+ */
+
+  // 1. Draw base layer (Unmasked Square)
+  ctx.fillStyle = state.bgColor;
+  ctx.fillRect(0,0,canvasSize,canvasSize);
+
+  // 2. Draw image with transformations
+  if (srcBitmap){
+    ctx.save();
+    ctx.translate(circle.x, circle.y);
+    ctx.rotate(deg2rad(state.angleDeg));
+    ctx.scale(state.scale, state.scale);
+    ctx.translate(state.tx, state.ty);
+    ctx.drawImage(srcBitmap, -srcBitmap.width/2, -srcBitmap.height/2);
+    ctx.restore();
+  }
+
+  // 3. Draw 50% Opaque Mask Overlay Outside the Circle
+  ctx.save();
+  ctx.beginPath();
+  // Outer rectangle path (counter-clockwise)
+  ctx.rect(0, 0, canvasSize, canvasSize);
+  // Inner circle path (clockwise) to create a hole (even-odd winding rule)
+  ctx.arc(circle.x, circle.y, circle.r, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; // 50% opaque dark overlay
+  ctx.fill();
+
+  ctx.restore(); // remove clipping
+
+  // 4. Draw subtle circular border outline
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(circle.x, circle.y, circle.r+0.5, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(255,0,255,1)";
+  ctx.stroke();
+  ctx.restore();
+
+  // 5. Draw vector guide on top (non-exported)
+  if (state.vectorOn){
+    ctx.save();
+    ctx.globalAlpha = 1 - state.vectorOpacity;
+    ctx.strokeStyle = "rgba(255,0,255,1)";
+    ctx.lineWidth = 3;
+    // Draw guide path centered in canvas by translating inside helper
+    // We'll draw to a temporary path using an offscreen path, then stroke
+    // Implemented by calling drawVectorGuide which appends to context path
+    drawVectorGuide(ctx, canvasSize, canvasSize);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* Export Square PNG (without mask or vector guide) */
+async function exportPNG(size){
+  const out = document.createElement('canvas');
+  out.width = size; out.height = size;
+  const octx = out.getContext('2d', { alpha: true });
+  const sf = size / canvasSize;
+
+/* 
+  if (maskMode === "masked") {
+    // clip to circle scaled
+    octx.save();
+    octx.beginPath();
+    octx.arc(circle.x*sf, circle.y*sf, circle.r*sf, 0, Math.PI*2);
+    octx.closePath();
+    octx.clip();
+  }
+ */
+
+  // fill background color inside circle
+  octx.fillStyle = state.bgColor;
+  octx.fillRect(0,0,size,size);
+
+  // draw image with same transforms
+  if (srcBitmap){
+    octx.save();
+    octx.translate(circle.x*sf, circle.y*sf);
+    octx.rotate(deg2rad(state.angleDeg));
+    octx.scale(state.scale*sf, state.scale*sf);
+    octx.translate(state.tx*sf, state.ty*sf);
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = "high";
+    octx.antialias = "subpixel"; // harmless extra hint
+    octx.drawImage(srcBitmap, -srcBitmap.width/2, -srcBitmap.height/2);
+    octx.restore();
+  }
+
+  octx.restore();
+
+  return new Promise(resolve => out.toBlob(resolve, 'image/png'));
+}
+
+/* Helper: load image file -> ImageBitmap (uses createImageBitmap for reliability/performance) */
+async function loadImageFileToBitmap(file){
+  if (!file) throw new Error('No file');
+  if (file.size > MAX_FILE_BYTES) throw new Error('File too large (>10MB)');
+  // createImageBitmap supports File/Blob directly in modern browsers
+  try {
+    const bitmap = await createImageBitmap(file);
+    return bitmap;
+  } catch (e){
+    // fallback: read as dataURL then decode into Image and wait decode
+    return await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = async () => {
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            if (img.decode) await img.decode();
+          } catch(e){}
+          // create ImageBitmap from image element if supported
+          try {
+            const bmp = await createImageBitmap(img);
+            resolve(bmp);
+          } catch(err){
+            // as last resort, return the Image element (drawImage accepts Image too)
+            resolve(img);
+          }
+        };
+        img.onerror = reject;
+        img.src = fr.result;
+      };
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
+}
+
+/* load blob (clipboard) to ImageBitmap */
+async function loadBlobToBitmap(blob){
+  try {
+    return await createImageBitmap(blob);
+  } catch(e){
+    // fallback similar to above
+    return await new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = async () => {
+        try { if (img.decode) await img.decode(); } catch(e){}
+        try {
+          const bmp = await createImageBitmap(img);
+          URL.revokeObjectURL(url);
+          resolve(bmp);
+        } catch(err){
+          URL.revokeObjectURL(url);
+          resolve(img);
+        }
+      };
+      img.onerror = (ev) => { URL.revokeObjectURL(url); reject(ev); };
+      img.src = url;
+    });
+  }
+}
+
+/* Fit image: scale so smaller dimension fills frame */
+function fitBitmapToFrame(bitmap){
+  const diameter = circle.r * 2;
+  const w = bitmap.width, h = bitmap.height;
+  const scale = Math.max(diameter / w, diameter / h);
+  state.scale = scale;
+  state.angleDeg = 0;
+  state.tx = 0; state.ty = 0;
+  setDisplays(); draw();
+}
+
+/* Reset */
+function resetAll(){
+  srcBitmap = null;
+  state.angleDeg = 0; state.scale = 1; state.tx = 0; state.ty = 0;
+  state.vectorOn = true;
+
+  // Reset UI inputs to default values
+  bgColor.value = '#ffffff';
+  vectorOpacity.value = 0.45;
+  document.getElementById('vectorVal').textContent = '0.45';
+
+  // Reset state based on those defaults
+  state.vectorOpacity = parseFloat(vectorOpacity.value);
+  state.bgColor = bgColor.value;
+
+  setDisplays();
+  ctx.clearRect(0,0,canvasSize,canvasSize);
+  draw();
+}
+
+/* ---- Event wiring ---- */
+
+/* File upload */
+fileInput.addEventListener('change', async (e)=>{
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  try {
+    const bmp = await loadImageFileToBitmap(f);
+    srcBitmap = bmp;
+    fitBitmapToFrame(srcBitmap);
+  } catch(err){
+    alert('Failed to load file: ' + (err && err.message ? err.message : err));
+  } finally { fileInput.value = ''; }
+});
+
+/* Paste handling */
+pasteBtn.addEventListener('click', ()=>{ window.focus(); alert('Now paste (Ctrl/Cmd+V) an image from the clipboard.'); });
+window.addEventListener('paste', async (ev) => {
+  const items = ev.clipboardData && ev.clipboardData.items;
+  if (!items) return;
+  for (let i=0;i<items.length;i++){
+    const it = items[i];
+    if (it.type.indexOf('image') !== -1){
+      const blob = it.getAsFile();
+      try {
+        const bmp = await loadBlobToBitmap(blob);
+        srcBitmap = bmp;
+        fitBitmapToFrame(srcBitmap);
+      } catch(err){
+        alert('Could not read pasted image: ' + (err && err.message ? err.message : err));
+      }
+      ev.preventDefault();
+      return;
+    }
+  }
+});
+
+/* Drag & drop */
+preview.addEventListener('dragover', (e)=>{ e.preventDefault(); preview.style.opacity = 0.9; });
+preview.addEventListener('dragleave', ()=>{ preview.style.opacity = 1; });
+preview.addEventListener('drop', async (e)=>{
+  e.preventDefault(); preview.style.opacity = 1;
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  try {
+    const bmp = await loadImageFileToBitmap(f);
+    srcBitmap = bmp;
+    fitBitmapToFrame(srcBitmap);
+  } catch(err){ alert('Failed to load dropped image: ' + err); }
+});
+
+/* Fit & reset */
+fitBtn.addEventListener('click', ()=>{ if (srcBitmap) fitBitmapToFrame(srcBitmap); });
+resetBtn.addEventListener('click', resetAll);
+
+/* Rotation controls */
+rotDec.addEventListener('click', ()=>{ state.angleDeg = +(state.angleDeg - ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); });
+rotInc.addEventListener('click', ()=>{ state.angleDeg = +(state.angleDeg + ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); });
+rotRange.addEventListener('input', (e)=>{ state.angleDeg = +e.target.value; setDisplays(); draw(); });
+
+/* Scale controls */
+scaleDec.addEventListener('click', ()=>{ state.scale = Math.max(0.01, +(state.scale - SCALE_STEP_FINE).toFixed(3)); setDisplays(); draw(); });
+scaleInc.addEventListener('click', ()=>{ state.scale = +(state.scale + SCALE_STEP_FINE).toFixed(3); setDisplays(); draw(); });
+scaleRange.addEventListener('input', (e)=>{ state.scale = +e.target.value; setDisplays(); draw(); });
+
+/* Nudge */
+function nudge(dx,dy){ state.tx += dx; state.ty += dy; draw(); }
+upBtn.addEventListener('click', ()=> nudge(0, -Number(nudgePx.value||5)));
+downBtn.addEventListener('click', ()=> nudge(0, Number(nudgePx.value||5)));
+leftBtn.addEventListener('click', ()=> nudge(-Number(nudgePx.value||5), 0));
+rightBtn.addEventListener('click', ()=> nudge(Number(nudgePx.value||5), 0));
+
+/* Background */
+bgColor.addEventListener('input', (e)=>{ state.bgColor = e.target.value; draw(); });
+
+/* Vector guide */
+vectorOpacity.addEventListener('input', (e)=>{ state.vectorOpacity = parseFloat(e.target.value); vectorVal.textContent = state.vectorOpacity.toFixed(2); draw(); });
+// toggleVector.addEventListener('click', ()=>{ state.vectorOn = !state.vectorOn; toggleVector.textContent = state.vectorOn ? 'Hide guide' : 'Show guide'; draw(); });
+
+/* Redraw preview immediately when user interacts with the mask mode dropdown */
+/* 
+['change', 'click'].forEach(evt =>
+  exportMask.addEventListener(evt, (e) => {
+    maskMode = e.target.value;
+    draw();
+  })
+);
+ */
+/* Download & Copy (both use exportPNG which excludes vector guide) */
+downloadBtn.addEventListener('click', async ()=>{
+  const size = Number(exportSize.value) || 600;
+  const blob = await exportPNG(size);
+  if (!blob){ alert('Export failed'); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `headshot_${size}x${size}.png`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+copyBtn.addEventListener('click', async () => {
+  const size = Number(exportSize.value) || 600;
+
+  try {
+    // 1. Create the ClipboardItem immediately. 
+    // We pass a Promise that resolves to the blob.
+    const item = new ClipboardItem({
+      'image/png': (async () => {
+        const blob = await exportPNG(size);
+        if (!blob) throw new Error('Export failed');
+        return blob;
+      })()
+    });
+
+    // 2. Write to the clipboard immediately
+    await navigator.clipboard.write([item]);
+    
+    alert('Copied PNG to clipboard.');
+  } catch (err) {
+    console.error(err);
+    alert('Copy failed: ' + err.message);
+  }
+});
+
+/* Drag to pan (pointer events) */
+let dragging=false, dragStart=null;
+preview.addEventListener('pointerdown', (e)=>{
+  if (!srcBitmap) return;
+  dragging=true;
+  preview.setPointerCapture(e.pointerId);
+  dragStart = { x: e.clientX, y: e.clientY, tx: state.tx, ty: state.ty };
+  preview.style.cursor='grabbing';
+});
+preview.addEventListener('pointermove', (e)=>{
+  if (!dragging || !dragStart) return;
+  const dx = (e.clientX - dragStart.x);
+  const dy = (e.clientY - dragStart.y);
+  state.tx = dragStart.tx + dx;
+  state.ty = dragStart.ty + dy;
+  draw();
+});
+preview.addEventListener('pointerup', (e)=>{ if (!dragging) return; dragging=false; try{ preview.releasePointerCapture(e.pointerId); }catch(_){} preview.style.cursor='grab'; });
+preview.addEventListener('pointercancel', ()=>{ dragging=false; preview.style.cursor='grab'; });
+
+/* Keyboard shortcuts: arrows to nudge, Cmd/Ctrl + ,/. to rotate fine */
+window.addEventListener('keydown', (ev)=>{
+  if (ev.key === 'ArrowUp'){ nudge(0,-Number(nudgePx.value||5)); ev.preventDefault(); }
+  if (ev.key === 'ArrowDown'){ nudge(0,Number(nudgePx.value||5)); ev.preventDefault(); }
+  if (ev.key === 'ArrowLeft'){ nudge(-Number(nudgePx.value||5),0); ev.preventDefault(); }
+  if (ev.key === 'ArrowRight'){ nudge(Number(nudgePx.value||5),0); ev.preventDefault(); }
+  if ((ev.ctrlKey||ev.metaKey) && ev.key === ','){ state.angleDeg = +(state.angleDeg - ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); ev.preventDefault(); }
+  if ((ev.ctrlKey||ev.metaKey) && ev.key === '.'){ state.angleDeg = +(state.angleDeg + ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); ev.preventDefault(); }
+});
+
+/* Initial draw */
+setDisplays();
+draw();
+</script>
+</body>
+</html>
