@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logo Framer</title>
+<style>
+  :root{
+    --ink:#1c1d20;
+    --ink-soft:#5b5d63;
+    --line:#d8d9dc;
+    --line-soft:#eceef0;
+    --paper:#ffffff;
+    --canvas-bg:#f3f4f6;
+    --accent:#2f6feb;
+    --accent-soft:#eaf1ff;
+    --guide:#ff00ff;
+    --mono: "SF Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--canvas-bg);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .app{
+    display:grid;
+    grid-template-columns: 1fr 320px;
+    min-height:100vh;
+  }
+
+  /* ---------- Main / stage ---------- */
+  .main{
+    padding:28px 32px 40px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    min-width:0;
+  }
+  .header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .header h1{
+    font-size:15px;
+    font-weight:600;
+    letter-spacing:0.01em;
+    margin:0;
+  }
+  .header .sub{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .spec-pill{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-soft);
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:5px 12px;
+    white-space:nowrap;
+  }
+
+  .stage-wrap{
+    position:relative;
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      linear-gradient(45deg, #e9eaed 25%, transparent 25%),
+      linear-gradient(-45deg, #e9eaed 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e9eaed 75%),
+      linear-gradient(-45deg, transparent 75%, #e9eaed 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color:#f7f7f8;
+    border:1px solid var(--line);
+    border-radius:10px;
+    min-height:0;
+    overflow:auto;
+    padding:24px;
+  }
+
+  #stage{
+    position:relative;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08), 0 12px 28px rgba(0,0,0,0.08);
+    background:#fff;
+    touch-action:none;
+    outline:none;
+  }
+  #stage:focus-visible{
+    box-shadow:0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent), 0 12px 28px rgba(0,0,0,0.08);
+  }
+  #bgCanvas, #borderCanvas, #overlayCanvas{
+    position:absolute;
+    top:0; left:0;
+    display:block;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+  }
+  /* Paint order (back to front): fill -> logo -> frame border -> magenta
+     guides. Keeping the border on its own top layer means a logo with an
+     opaque white (or any solid) background never covers the frame's
+     outline — matches the export's layer order exactly. */
+  #bgCanvas{ z-index:1; }
+  #logoLayer{
+    position:absolute;
+    top:0; left:0;
+    z-index:2;
+    cursor:grab;
+    user-select:none;
+    -webkit-user-drag:none;
+  }
+  #borderCanvas{ z-index:3; }
+  #overlayCanvas{ z-index:4; }
+  #logoLayer.dragging{ cursor:grabbing; }
+  #logoLayer img{
+    position:absolute;
+    display:block;
+    pointer-events:none;
+    -webkit-user-drag:none;
+    image-rendering:auto;
+  }
+  #logoLayer.empty{ display:none; }
+
+  /* dropzone shown when no bg loaded */
+  .empty-state{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    text-align:center;
+    padding:60px;
+    color:var(--ink-soft);
+  }
+  .empty-state .icon{
+    width:40px;height:40px;
+    border:1.5px dashed var(--ink-soft);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+    opacity:0.6;
+  }
+  .empty-state strong{ color:var(--ink); font-weight:600; font-size:13px; }
+  .empty-state span{ font-size:12px; max-width:280px; line-height:1.5; }
+
+  .dropzone-outer{
+    position:absolute;
+    inset:0;
+    z-index:5;
+  }
+  .dropzone-outer.drag-active .stage-wrap{
+    background-color: var(--accent-soft);
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    background:var(--paper);
+    border-left:1px solid var(--line);
+    padding:24px 22px 28px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    overflow-y:auto;
+  }
+  .panel-title{
+    font-size:11px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    margin:0 0 10px;
+  }
+  .section{ }
+  .section + .section{
+    padding-top:20px;
+    border-top:1px solid var(--line-soft);
+  }
+
+  .file-slot{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:12.5px;
+    background:var(--paper);
+  }
+  .file-slot .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--line);
+    flex:none;
+  }
+  .file-slot.ok .dot{ background:#2fae6b; }
+  .file-slot .txt{ flex:1; min-width:0; }
+  .file-slot .name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .file-slot .meta{ color:var(--ink-soft); font-size:11px; margin-top:1px; }
+  .file-slot button{
+    border:none;background:none;color:var(--ink-soft);
+    cursor:pointer; font-size:12px; padding:4px; line-height:1;
+  }
+  .file-slot button:hover{ color:var(--ink); }
+
+  .drop-target{
+    display:block;
+    margin-top:10px;
+    border:1.5px dashed var(--line);
+    border-radius:8px;
+    padding:16px 12px;
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:border-color .15s, background-color .15s, color .15s;
+  }
+  .drop-target:hover, .drop-target.drag-active{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+    color:var(--accent);
+  }
+  .drop-target input{ display:none; }
+  .drop-target .hint{ display:block; margin-top:4px; font-size:11px; opacity:0.8; }
+
+  label.field-label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:6px;
+  }
+  .row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .row + .row{ margin-top:10px; }
+
+  input[type="range"]{
+    -webkit-appearance:none;
+    flex:1;
+    height:4px;
+    border-radius:2px;
+    background:var(--line);
+    outline:none;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:15px;height:15px;
+    border-radius:50%;
+    background:var(--paper);
+    border:2px solid var(--accent);
+    cursor:pointer;
+    box-shadow:0 1px 2px rgba(0,0,0,0.15);
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:15px;height:15px;
+    border-radius:50%;
+    background:var(--paper);
+    border:2px solid var(--accent);
+    cursor:pointer;
+  }
+  .scale-value{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    width:44px;
+    text-align:right;
+    flex:none;
+  }
+
+  .xy-fields{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .xy-field{
+    display:flex;
+    align-items:center;
+    border:1px solid var(--line);
+    border-radius:6px;
+    overflow:hidden;
+    background:var(--paper);
+  }
+  .xy-field span{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-soft);
+    padding:0 8px;
+    background:var(--line-soft);
+    align-self:stretch;
+    display:flex;align-items:center;
+    border-right:1px solid var(--line);
+  }
+  .xy-field input{
+    border:none;
+    outline:none;
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:7px 8px;
+    width:100%;
+    min-width:0;
+    background:transparent;
+    color:var(--ink);
+  }
+
+  .btn-row{ display:flex; gap:8px; margin-top:12px; }
+  .btn{
+    font-family:var(--sans);
+    font-size:12px;
+    font-weight:600;
+    padding:8px 12px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+    cursor:pointer;
+    transition:background-color .12s, border-color .12s;
+  }
+  .btn:hover{ background:var(--line-soft); }
+  .btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .btn.primary{
+    background:var(--ink);
+    border-color:var(--ink);
+    color:#fff;
+  }
+  .btn.primary:hover{ background:#000; }
+  .btn.full{ width:100%; }
+
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:12.5px;
+  }
+  .switch{
+    position:relative;
+    width:34px; height:19px;
+    flex:none;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .track{
+    position:absolute; inset:0;
+    background:var(--line);
+    border-radius:20px;
+    transition:background-color .15s;
+    cursor:pointer;
+  }
+  .switch .track::after{
+    content:"";
+    position:absolute;
+    width:15px;height:15px;
+    left:2px; top:2px;
+    background:#fff;
+    border-radius:50%;
+    transition:transform .15s;
+    box-shadow:0 1px 2px rgba(0,0,0,0.2);
+  }
+  .switch input:checked + .track{ background:var(--accent); }
+  .switch input:checked + .track::after{ transform:translateX(15px); }
+
+  .hint-text{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    margin-top:10px;
+  }
+  kbd{
+    font-family:var(--mono);
+    font-size:10.5px;
+    background:var(--line-soft);
+    border:1px solid var(--line);
+    border-bottom-width:2px;
+    border-radius:4px;
+    padding:1px 5px;
+  }
+
+  .preview-thumb-wrap{
+    position:relative;
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:14px;
+    background:
+      linear-gradient(45deg, #e9eaed 25%, transparent 25%),
+      linear-gradient(-45deg, #e9eaed 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e9eaed 75%),
+      linear-gradient(-45deg, transparent 75%, #e9eaed 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 0 7px, 7px -7px, -7px 0px;
+    background-color:#f7f7f8;
+  }
+  .preview-thumb-wrap.empty{ display:none; }
+  #previewThumb{
+    display:block;
+    width:100%;
+    height:auto;
+    cursor:grab;
+  }
+  #previewThumb:active{ cursor:grabbing; }
+
+  .export-meta{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-soft);
+    line-height:1.7;
+  }
+
+  .toast{
+    position:fixed;
+    bottom:22px;
+    left:50%;
+    transform:translateX(-50%) translateY(8px);
+    background:var(--ink);
+    color:#fff;
+    font-size:12.5px;
+    font-weight:500;
+    padding:10px 16px;
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.2);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s, transform .18s;
+    z-index:50;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+  .toast.error{ background:#b3261e; }
+
+  ::selection{ background:var(--accent-soft); }
+
+  @media (max-width: 860px){
+    .app{ grid-template-columns:1fr; }
+    .sidebar{ border-left:none; border-top:1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ============ MAIN STAGE ============ -->
+  <div class="main">
+    <div class="header">
+      <div>
+        <h1>Logo Framer</h1>
+        <div class="sub">Frame a logo inside the bragsheet template and export a pixel-exact PNG.</div>
+      </div>
+      <div class="spec-pill" id="specPill">1800 × 600 · 600 DPI</div>
+    </div>
+
+    <div class="stage-wrap" id="stageWrap">
+      <div id="stage">
+        <canvas id="bgCanvas"></canvas>
+        <div id="logoLayer" class="empty"><img id="logoImg" alt=""></div>
+        <canvas id="borderCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+      <div class="empty-state" id="emptyState">
+        <div class="icon">▤</div>
+        <strong>Load a background frame to begin</strong>
+        <span>Drop the frame PNG anywhere on this canvas, paste it (⌘V), or use the loader in the sidebar.</span>
+      </div>
+      <div class="dropzone-outer" id="stageDropzone"></div>
+    </div>
+  </div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <div class="sidebar">
+
+    <div class="section">
+      <p class="panel-title">1 · Background frame</p>
+      <div class="file-slot" id="bgSlot">
+        <div class="dot"></div>
+        <div class="txt">
+          <div class="name" id="bgName">No frame loaded</div>
+          <div class="meta" id="bgMeta">PNG with embedded DPI</div>
+        </div>
+        <button id="bgClear" title="Remove">✕</button>
+      </div>
+      <label class="drop-target" id="bgDropTarget">
+        Drop, paste, or click to choose frame
+        <span class="hint">Retains source DPI &amp; pixel size on export</span>
+        <input type="file" id="bgFileInput" accept="image/png,image/jpeg">
+      </label>
+      <div class="btn-row">
+        <button class="btn full" id="generateFrameBtn">Use generated frame (1800×600 spec)</button>
+      </div>
+      <p class="hint-text" id="generatedFrameHint">
+        Generated frames draw the border on top of the logo, so opaque logo backgrounds never cover the outline. Uploaded frames keep the border baked in beneath the logo.
+      </p>
+    </div>
+
+    <div class="section">
+      <p class="panel-title">2 · Logo</p>
+      <div class="file-slot" id="logoSlot">
+        <div class="dot"></div>
+        <div class="txt">
+          <div class="name" id="logoName">No logo loaded</div>
+          <div class="meta" id="logoMeta">SVG, PNG, JPG, WEBP</div>
+        </div>
+        <button id="logoClear" title="Remove">✕</button>
+      </div>
+      <label class="drop-target" id="logoDropTarget">
+        Drop, paste, or click to choose logo
+        <span class="hint">Auto-fits inside the content box, centered</span>
+        <input type="file" id="logoFileInput" accept="image/svg+xml,image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff">
+      </label>
+    </div>
+
+    <div class="section">
+      <p class="panel-title">3 · Size &amp; position</p>
+
+      <label class="field-label" for="scaleSlider">Scale</label>
+      <div class="row">
+        <input type="range" id="scaleSlider" min="1" max="400" value="100" disabled>
+        <span class="scale-value" id="scaleValue">100%</span>
+      </div>
+
+      <div style="margin-top:14px;">
+        <label class="field-label">Offset from center (px, background scale)</label>
+        <div class="xy-fields">
+          <div class="xy-field">
+            <span>X</span>
+            <input type="number" id="offsetX" value="0" step="1" disabled>
+          </div>
+          <div class="xy-field">
+            <span>Y</span>
+            <input type="number" id="offsetY" value="0" step="1" disabled>
+          </div>
+        </div>
+      </div>
+
+      <div class="toggle-row" style="margin-top:14px;">
+        <span>Magenta guides</span>
+        <label class="switch">
+          <input type="checkbox" id="guidesToggle" checked>
+          <span class="track"></span>
+        </label>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn full" id="resetPosBtn" disabled>Reset to center</button>
+      </div>
+
+      <p class="hint-text">
+        Drag the logo on the canvas, or use <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> to nudge by 1px
+        (<kbd>Shift</kbd> for 10px). Click the canvas first to focus it.
+      </p>
+    </div>
+
+    <div class="section">
+      <p class="panel-title">4 · Export</p>
+      <div class="preview-thumb-wrap empty" id="previewThumbWrap">
+        <img id="previewThumb" alt="Export preview" draggable="true">
+      </div>
+      <div class="export-meta" id="exportMeta">
+        Output —<br>waiting on frame
+      </div>
+      <div class="btn-row">
+        <button class="btn primary full" id="downloadBtn" disabled>Download PNG</button>
+      </div>
+      <p class="hint-text">
+        Drag the preview thumbnail above straight into a Finder window, or use the download button.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+
+  // ---------------------------------------------------------------------
+  // Config — mirrors the _3x1_frame.md spec exactly. Used both to derive
+  // the content box for any loaded background, and to generate a frame
+  // from scratch when no custom background is uploaded.
+  // ---------------------------------------------------------------------
+  const DEFAULT_CONTENT_MAX_W = 1560;
+  const DEFAULT_CONTENT_MAX_H = 450;
+
+  const FRAME_SPEC = {
+    width: 1800,
+    height: 600,
+    dpi: 600,
+    marginLeft: 75,
+    marginRight: 75,
+    marginTop: 120,
+    marginBottom: 120,
+    lineColor: '#C0C0C0',
+    // 1pt stroke at 600 DPI = 600/72 px, stroke-alignment "inside" (the
+    // stroke sits entirely inside the canvas edge — measured against the
+    // reference frame PNG's actual pixel edges).
+    lineWidthPt: 1,
+  };
+  function frameLineWidthPx(dpi){ return (FRAME_SPEC.lineWidthPt / 72) * dpi; }
+
+  // ---------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------
+  const state = {
+    bg: null,          // { img, width, height, dpi, name, generated, fillColor, borderColor, borderWidthPx }
+    logo: null,        // { img, naturalW, naturalH, name, isRaster }
+    contentBox: null,  // { w, h } derived from bg size (proportional to spec)
+    scalePct: 100,      // percentage relative to "fit" baseline
+    baseFitScale: 1,    // scale factor that makes logo fit content box at 100%
+    offsetX: 0,          // px in background-pixel space, from center
+    offsetY: 0,
+    dragging: false,
+    dragStart: null,
+  };
+
+  // ---------------------------------------------------------------------
+  // Elements
+  // ---------------------------------------------------------------------
+  const el = {
+    stage: document.getElementById('stage'),
+    stageWrap: document.getElementById('stageWrap'),
+    bgCanvas: document.getElementById('bgCanvas'),
+    borderCanvas: document.getElementById('borderCanvas'),
+    overlayCanvas: document.getElementById('overlayCanvas'),
+    logoLayer: document.getElementById('logoLayer'),
+    logoImg: document.getElementById('logoImg'),
+    emptyState: document.getElementById('emptyState'),
+    stageDropzone: document.getElementById('stageDropzone'),
+
+    bgSlot: document.getElementById('bgSlot'),
+    bgName: document.getElementById('bgName'),
+    bgMeta: document.getElementById('bgMeta'),
+    bgClear: document.getElementById('bgClear'),
+    bgDropTarget: document.getElementById('bgDropTarget'),
+    bgFileInput: document.getElementById('bgFileInput'),
+    generateFrameBtn: document.getElementById('generateFrameBtn'),
+
+    logoSlot: document.getElementById('logoSlot'),
+    logoName: document.getElementById('logoName'),
+    logoMeta: document.getElementById('logoMeta'),
+    logoClear: document.getElementById('logoClear'),
+    logoDropTarget: document.getElementById('logoDropTarget'),
+    logoFileInput: document.getElementById('logoFileInput'),
+
+    scaleSlider: document.getElementById('scaleSlider'),
+    scaleValue: document.getElementById('scaleValue'),
+    offsetXInput: document.getElementById('offsetX'),
+    offsetYInput: document.getElementById('offsetY'),
+    guidesToggle: document.getElementById('guidesToggle'),
+    resetPosBtn: document.getElementById('resetPosBtn'),
+
+    specPill: document.getElementById('specPill'),
+    previewThumbWrap: document.getElementById('previewThumbWrap'),
+    previewThumb: document.getElementById('previewThumb'),
+    exportMeta: document.getElementById('exportMeta'),
+    downloadBtn: document.getElementById('downloadBtn'),
+
+    toast: document.getElementById('toast'),
+  };
+
+  let toastTimer = null;
+  function showToast(msg, isError){
+    el.toast.textContent = msg;
+    el.toast.classList.toggle('error', !!isError);
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.toast.classList.remove('show'), 3200);
+  }
+
+  function fmtBytes(n){
+    if(n === null || n === undefined) return 'generated';
+    if(n < 1024) return n + ' B';
+    if(n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/(1024*1024)).toFixed(2) + ' MB';
+  }
+
+  // ---------------------------------------------------------------------
+  // DPI reading (PNG pHYs chunk / JPEG APP0 or Exif) — best effort.
+  // Falls back to 600 (the template's documented DPI) if undetectable.
+  // ---------------------------------------------------------------------
+  function readDpiFromArrayBuffer(buf, mimeType){
+    try{
+      const view = new DataView(buf);
+      if(mimeType === 'image/png'){
+        // PNG: find pHYs chunk
+        let offset = 8; // skip signature
+        while(offset < view.byteLength){
+          const length = view.getUint32(offset);
+          const type = String.fromCharCode(
+            view.getUint8(offset+4), view.getUint8(offset+5),
+            view.getUint8(offset+6), view.getUint8(offset+7)
+          );
+          if(type === 'pHYs'){
+            const ppuX = view.getUint32(offset+8);
+            const unit = view.getUint8(offset+16);
+            if(unit === 1){ // meters
+              return Math.round(ppuX * 0.0254);
+            }
+          }
+          if(type === 'IEND') break;
+          offset += 12 + length; // length + type + data + crc
+        }
+      } else if(mimeType === 'image/jpeg'){
+        // JPEG: look for APP0 JFIF density
+        let offset = 2;
+        while(offset < view.byteLength - 4){
+          if(view.getUint8(offset) !== 0xFF) break;
+          const marker = view.getUint8(offset+1);
+          const segLen = view.getUint16(offset+2);
+          if(marker === 0xE0){ // APP0
+            const units = view.getUint8(offset+11);
+            const xDensity = view.getUint16(offset+12);
+            if(units === 1) return xDensity; // dpi
+            if(units === 2) return Math.round(xDensity * 2.54); // dots/cm
+          }
+          if(marker === 0xDA) break; // start of scan
+          offset += 2 + segLen;
+        }
+      }
+    }catch(e){ /* best effort only */ }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------
+  // Loaders
+  // ---------------------------------------------------------------------
+  function isTiff(file){
+    return file.type === 'image/tiff' || /\.tiff?$/i.test(file.name || '');
+  }
+
+  // ---------------------------------------------------------------------
+  // Generated frame — built from FRAME_SPEC rather than an uploaded PNG.
+  // Generating it means the border can always be painted on top of the
+  // logo layer at export time, so a logo with an opaque white (or any
+  // solid-color) bounding box never covers the frame's grey outline —
+  // only the fill sits behind the logo; the border stroke sits in front.
+  // ---------------------------------------------------------------------
+  function generateFrameBackground(width, height, dpi){
+    width = width || FRAME_SPEC.width;
+    height = height || FRAME_SPEC.height;
+    dpi = dpi || FRAME_SPEC.dpi;
+    const borderPx = frameLineWidthPx(dpi);
+
+    // Render the fill+border once into an <img> (via canvas -> data URL)
+    // purely so state.bg.img / drawBackgroundCanvas() keep working exactly
+    // like an uploaded background for on-screen preview. The *export* path
+    // draws fill/logo/border as separate steps (see renderExportCanvas)
+    // so the border can sit on top of the logo there too.
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    paintFrameFill(ctx, width, height);
+    paintFrameBorder(ctx, width, height, borderPx);
+
+    return new Promise(resolve=>{
+      const img = new Image();
+      img.onload = function(){
+        resolve({
+          img: img,
+          width: width,
+          height: height,
+          dpi: dpi,
+          name: `generated-frame-${width}x${height}.png`,
+          size: null,
+          generated: true,
+          borderWidthPx: borderPx,
+        });
+      };
+      img.src = canvas.toDataURL('image/png');
+    });
+  }
+
+  function paintFrameFill(ctx, width, height){
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  function paintFrameBorder(ctx, width, height, borderPx){
+    ctx.save();
+    ctx.strokeStyle = FRAME_SPEC.lineColor;
+    ctx.lineWidth = borderPx;
+    // stroke-alignment "inside": inset the stroked rect by half the
+    // stroke width so the outer edge of the stroke lands exactly on the
+    // canvas boundary (matches the reference frame PNG's pixel geometry).
+    const inset = borderPx / 2;
+    ctx.strokeRect(inset, inset, width - borderPx, height - borderPx);
+    ctx.restore();
+  }
+
+  function loadBackground(file){
+    if(isTiff(file)){
+      showToast('TIFF backgrounds aren\'t supported in-browser — please convert to PNG first.', true);
+      return;
+    }
+    if(!/^image\/(png|jpeg)$/.test(file.type) && !/\.(png|jpe?g)$/i.test(file.name||'')){
+      showToast('Background must be a PNG or JPG.', true);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const buf = e.target.result;
+      const blob = new Blob([buf], {type:file.type || 'image/png'});
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = function(){
+        const dpi = readDpiFromArrayBuffer(buf, file.type) || 600;
+        state.bg = {
+          img: img,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          dpi: dpi,
+          name: file.name || 'background.png',
+          size: file.size,
+        };
+        deriveContentBox();
+        applyBackground();
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = function(){
+        showToast('Could not read that image file.', true);
+      };
+      img.src = url;
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // Parse an SVG's intrinsic aspect ratio from width/height or viewBox
+  // attributes. Browsers fall back to a generic 300x150 replaced-element
+  // size when an SVG has neither, which silently corrupts fit-to-box
+  // scaling for non-4:3-ish logos — so we read the real markup instead.
+  function parseSvgAspect(svgText){
+    try{
+      const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+      const svgEl = doc.documentElement;
+      if(!svgEl || svgEl.nodeName.toLowerCase() !== 'svg') return null;
+
+      // viewBox is the authoritative source of true aspect ratio — width/
+      // height attributes are frequently "100%" (percentage strings, not
+      // real dimensions) on exported logos, which parseFloat would
+      // silently accept as "100" and produce a distorted 1:1 fit. Prefer
+      // viewBox whenever it's present and valid; only fall back to
+      // width/height attributes (and only when both are absolute,
+      // unitless-or-px numbers) if there's no viewBox at all.
+      const vb = svgEl.getAttribute('viewBox');
+      if(vb){
+        const parts = vb.trim().split(/[\s,]+/).map(Number);
+        if(parts.length === 4 && parts[2] > 0 && parts[3] > 0){
+          return { w: parts[2], h: parts[3] };
+        }
+      }
+      const wRaw = (svgEl.getAttribute('width')||'').trim();
+      const hRaw = (svgEl.getAttribute('height')||'').trim();
+      const isAbsoluteLength = s => /^[0-9.]+(px)?$/i.test(s);
+      if(isAbsoluteLength(wRaw) && isAbsoluteLength(hRaw)){
+        const wAttr = parseFloat(wRaw), hAttr = parseFloat(hRaw);
+        if(wAttr > 0 && hAttr > 0) return { w: wAttr, h: hAttr };
+      }
+    }catch(e){ /* fall through */ }
+    return null;
+  }
+
+  function loadLogo(file){
+    if(isTiff(file)){
+      showToast('TIFF logos aren\'t supported in-browser — please convert to PNG or SVG first.', true);
+      return;
+    }
+    const okTypes = /^image\/(svg\+xml|png|jpeg|webp|gif|bmp)$/;
+    if(!okTypes.test(file.type) && !/\.(svg|png|jpe?g|webp|gif|bmp)$/i.test(file.name||'')){
+      showToast('Logo must be SVG, PNG, JPG, WEBP, GIF, or BMP.', true);
+      return;
+    }
+    const isSvgFile = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name||'');
+
+    if(isSvgFile){
+      // Read as text first so we can extract the real aspect ratio,
+      // then re-encode as a data URL for the <img> element.
+      const textReader = new FileReader();
+      textReader.onload = function(te){
+        const svgText = te.target.result;
+        const aspect = parseSvgAspect(svgText);
+        const b64 = btoa(unescape(encodeURIComponent(svgText)));
+        const dataUrl = 'data:image/svg+xml;base64,' + b64;
+        const img = new Image();
+        img.onload = function(){
+          state.logo = {
+            img: img,
+            naturalW: (aspect && aspect.w) || img.naturalWidth || 300,
+            naturalH: (aspect && aspect.h) || img.naturalHeight || 150,
+            name: file.name || 'logo.svg',
+            size: file.size,
+            isSvg: true,
+          };
+          applyLogo();
+        };
+        img.onerror = function(){
+          showToast('Could not read that SVG file.', true);
+        };
+        img.src = dataUrl;
+      };
+      textReader.onerror = function(){
+        showToast('Could not read that SVG file.', true);
+      };
+      textReader.readAsText(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const dataUrl = e.target.result;
+      const img = new Image();
+      img.onload = function(){
+        state.logo = {
+          img: img,
+          naturalW: img.naturalWidth,
+          naturalH: img.naturalHeight,
+          name: file.name || 'logo',
+          size: file.size,
+          isSvg: false,
+        };
+        applyLogo();
+      };
+      img.onerror = function(){
+        showToast('Could not read that logo file.', true);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------------------------------------------------------------------
+  // Content box derivation — scales the documented 1560x450 @ 1800x600
+  // spec proportionally if a different-sized background is ever loaded.
+  // ---------------------------------------------------------------------
+  function deriveContentBox(){
+    const specW = 1800, specH = 600;
+    const ratioW = DEFAULT_CONTENT_MAX_W / specW;
+    const ratioH = DEFAULT_CONTENT_MAX_H / specH;
+    state.contentBox = {
+      w: state.bg.width * ratioW,
+      h: state.bg.height * ratioH,
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // Stage sizing — the DOM stage is shown at a CSS-pixel scale for screen
+  // display, but all position/scale math happens in background-pixel
+  // space so export is exact.
+  // ---------------------------------------------------------------------
+  function getDisplayScale(){
+    if(!state.bg) return 1;
+    const wrapRect = el.stageWrap.getBoundingClientRect();
+    const availW = Math.max(280, wrapRect.width - 48);
+    const availH = Math.max(200, wrapRect.height - 48);
+    const scale = Math.min(availW / state.bg.width, availH / state.bg.height, 1);
+    return scale;
+  }
+
+  function applyBackground(){
+    el.emptyState.style.display = 'none';
+    const bg = state.bg;
+
+    el.bgSlot.classList.add('ok');
+    el.bgName.textContent = bg.name;
+    const bgSizeTxt = bg.generated ? 'generated from spec' : fmtBytes(bg.size);
+    el.bgMeta.textContent = `${bg.width} × ${bg.height}px · ${bg.dpi} DPI · ${bgSizeTxt}`;
+    el.specPill.textContent = `${bg.width} × ${bg.height} · ${bg.dpi} DPI`;
+
+    layoutStage();
+    drawBackgroundCanvas();
+    drawBorderCanvas();
+    drawGuides();
+    updateExportMeta();
+    el.downloadBtn.disabled = !state.logo;
+    schedulePreviewUpdate();
+  }
+
+  function layoutStage(){
+    const bg = state.bg;
+    const scale = getDisplayScale();
+    const dispW = bg.width * scale;
+    const dispH = bg.height * scale;
+
+    el.stage.style.width = dispW + 'px';
+    el.stage.style.height = dispH + 'px';
+
+    [el.bgCanvas, el.borderCanvas, el.overlayCanvas].forEach(c=>{
+      c.width = bg.width;
+      c.height = bg.height;
+    });
+
+    state.displayScale = scale;
+  }
+
+  function drawBackgroundCanvas(){
+    const ctx = el.bgCanvas.getContext('2d');
+    ctx.clearRect(0,0, el.bgCanvas.width, el.bgCanvas.height);
+    if(state.bg.generated){
+      // Fill only — the border is drawn separately on borderCanvas, above
+      // the logo layer, so it always stays visible on top.
+      paintFrameFill(ctx, state.bg.width, state.bg.height);
+    } else {
+      // Uploaded background: a single flat image, border baked in. It
+      // can't be split, so (as before) the logo draws on top of it as one
+      // unit — this is the tradeoff of bringing your own background PNG
+      // instead of using the generated one.
+      ctx.drawImage(state.bg.img, 0, 0, state.bg.width, state.bg.height);
+    }
+  }
+
+  function drawBorderCanvas(){
+    const ctx = el.borderCanvas.getContext('2d');
+    ctx.clearRect(0,0, el.borderCanvas.width, el.borderCanvas.height);
+    if(state.bg && state.bg.generated){
+      paintFrameBorder(ctx, state.bg.width, state.bg.height, state.bg.borderWidthPx);
+    }
+  }
+
+  function drawGuides(){
+    const ctx = el.overlayCanvas.getContext('2d');
+    ctx.clearRect(0,0, el.overlayCanvas.width, el.overlayCanvas.height);
+    if(!el.guidesToggle.checked || !state.bg) return;
+
+    const bg = state.bg;
+    const box = state.contentBox;
+    const cx = bg.width / 2;
+    const cy = bg.height / 2;
+    const left = cx - box.w/2;
+    const top = cy - box.h/2;
+
+    ctx.save();
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = Math.max(1, bg.width / 900); // ~2px at 1800 wide
+    ctx.setLineDash([bg.width/150, bg.width/300]);
+
+    // content box boundary
+    ctx.strokeRect(left, top, box.w, box.h);
+
+    // center crosshair (short ticks)
+    ctx.setLineDash([]);
+    const tick = box.w * 0.02;
+    ctx.beginPath();
+    ctx.moveTo(cx - tick, cy); ctx.lineTo(cx + tick, cy);
+    ctx.moveTo(cx, cy - tick); ctx.lineTo(cx, cy + tick);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------------
+  // Logo placement
+  // ---------------------------------------------------------------------
+  function applyLogo(){
+    const logo = state.logo;
+    el.logoLayer.classList.remove('empty');
+    el.logoImg.src = logo.img.src;
+
+    el.logoSlot.classList.add('ok');
+    el.logoName.textContent = logo.name;
+    const dimTxt = logo.isSvg ? 'SVG (vector)' : `${logo.naturalW} × ${logo.naturalH}px`;
+    el.logoMeta.textContent = `${dimTxt} · ${fmtBytes(logo.size)}`;
+
+    // Compute base "fit" scale: largest size that keeps the logo fully
+    // inside the content box, at natural aspect ratio.
+    const box = state.contentBox;
+    // SVGs without intrinsic size sometimes report 0 — guard it.
+    const natW = logo.naturalW || 300;
+    const natH = logo.naturalH || 150;
+    const fit = Math.min(box.w / natW, box.h / natH);
+    state.baseFitScale = fit;
+
+    // reset to defaults: 100% (fit), centered
+    state.scalePct = 100;
+    state.offsetX = 0;
+    state.offsetY = 0;
+    el.scaleSlider.value = 100;
+    el.scaleSlider.disabled = false;
+    el.offsetXInput.disabled = false;
+    el.offsetYInput.disabled = false;
+    el.resetPosBtn.disabled = false;
+    updateScaleLabel();
+
+    positionLogo();
+    el.downloadBtn.disabled = !state.bg;
+  }
+
+  function currentLogoPxSize(){
+    const logo = state.logo;
+    const natW = logo.naturalW || 300;
+    const natH = logo.naturalH || 150;
+    const s = state.baseFitScale * (state.scalePct/100);
+    return { w: natW * s, h: natH * s };
+  }
+
+  function positionLogo(){
+    if(!state.bg || !state.logo) return;
+    const bg = state.bg;
+    const scale = state.displayScale;
+    const { w, h } = currentLogoPxSize();
+
+    const cx = bg.width/2 + state.offsetX;
+    const cy = bg.height/2 + state.offsetY;
+    const left = cx - w/2;
+    const top = cy - h/2;
+
+    // position in DOM (CSS px, using display scale)
+    el.logoImg.style.left = (left*scale) + 'px';
+    el.logoImg.style.top = (top*scale) + 'px';
+    el.logoImg.style.width = (w*scale) + 'px';
+    el.logoImg.style.height = (h*scale) + 'px';
+
+    el.offsetXInput.value = Math.round(state.offsetX);
+    el.offsetYInput.value = Math.round(state.offsetY);
+
+    schedulePreviewUpdate();
+  }
+
+  function updateScaleLabel(){
+    el.scaleValue.textContent = Math.round(state.scalePct) + '%';
+  }
+
+  function resetPosition(){
+    state.offsetX = 0;
+    state.offsetY = 0;
+    positionLogo();
+  }
+
+  // ---------------------------------------------------------------------
+  // Export meta / filename
+  // ---------------------------------------------------------------------
+  function updateExportMeta(){
+    if(!state.bg){
+      el.exportMeta.innerHTML = 'Output —<br>waiting on frame';
+      return;
+    }
+    el.exportMeta.innerHTML =
+      `Output — ${state.bg.width} × ${state.bg.height}px<br>` +
+      `${state.bg.dpi} DPI · sRGB · PNG<br>` +
+      (state.logo ? 'Ready to export' : 'Waiting on logo');
+  }
+
+  // ---------------------------------------------------------------------
+  // PNG DPI writer — injects a pHYs chunk into an exported PNG blob so the
+  // output carries the same DPI metadata as the source background.
+  // ---------------------------------------------------------------------
+  function crc32(buf){
+    let c, crcTable = crc32.table || (crc32.table = (function(){
+      const t = [];
+      for(let n=0;n<256;n++){
+        c = n;
+        for(let k=0;k<8;k++){ c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); }
+        t[n] = c;
+      }
+      return t;
+    })());
+    let crc = 0xFFFFFFFF;
+    for(let i=0;i<buf.length;i++){
+      crc = crc32.table[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function makePhysChunk(dpi){
+    const ppm = Math.round(dpi / 0.0254); // pixels per meter
+    const data = new Uint8Array(9);
+    const dv = new DataView(data.buffer);
+    dv.setUint32(0, ppm);       // x ppu
+    dv.setUint32(4, ppm);       // y ppu
+    data[8] = 1;                 // unit: meters
+
+    const type = new Uint8Array([0x70,0x48,0x59,0x73]); // 'pHYs'
+    const typeAndData = new Uint8Array(type.length + data.length);
+    typeAndData.set(type,0);
+    typeAndData.set(data, type.length);
+    const crc = crc32(typeAndData);
+
+    const chunk = new Uint8Array(4 + typeAndData.length + 4);
+    const chunkDv = new DataView(chunk.buffer);
+    chunkDv.setUint32(0, data.length); // length of data only
+    chunk.set(typeAndData, 4);
+    chunkDv.setUint32(4 + typeAndData.length, crc);
+    return chunk;
+  }
+
+  function injectDpiIntoPng(arrayBuffer, dpi){
+    const bytes = new Uint8Array(arrayBuffer);
+    // PNG signature is 8 bytes; IHDR chunk follows immediately (4 len + 4 type + 13 data + 4 crc = 25 bytes)
+    const ihdrEnd = 8 + 25;
+    const physChunk = makePhysChunk(dpi);
+    const out = new Uint8Array(bytes.length + physChunk.length);
+    out.set(bytes.subarray(0, ihdrEnd), 0);
+    out.set(physChunk, ihdrEnd);
+    out.set(bytes.subarray(ihdrEnd), ihdrEnd + physChunk.length);
+    return out.buffer;
+  }
+
+  // ---------------------------------------------------------------------
+  // Compositing to full-resolution export canvas
+  // ---------------------------------------------------------------------
+  function renderExportCanvas(){
+    const bg = state.bg;
+    const canvas = document.createElement('canvas');
+    canvas.width = bg.width;
+    canvas.height = bg.height;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if(bg.generated){
+      // Fill, then logo, then border on top — a logo's opaque background
+      // (e.g. dead white space around its artwork) sits behind the frame
+      // outline instead of covering it.
+      paintFrameFill(ctx, bg.width, bg.height);
+      drawLogoOnto(ctx, bg);
+      paintFrameBorder(ctx, bg.width, bg.height, bg.borderWidthPx);
+    } else {
+      // Uploaded flat background — border is baked into the image, so it
+      // unavoidably sits *under* the logo, same as before.
+      ctx.drawImage(bg.img, 0, 0, bg.width, bg.height);
+      drawLogoOnto(ctx, bg);
+    }
+
+    return canvas;
+  }
+
+  function drawLogoOnto(ctx, bg){
+    if(!state.logo) return;
+    const { w, h } = currentLogoPxSize();
+    const cx = bg.width/2 + state.offsetX;
+    const cy = bg.height/2 + state.offsetY;
+    const left = cx - w/2;
+    const top = cy - h/2;
+    ctx.drawImage(state.logo.img, left, top, w, h);
+  }
+
+  function buildFilename(){
+    const bgBase = (state.bg.name||'frame').replace(/\.[^.]+$/, '');
+    const logoBase = state.logo ? (state.logo.name||'logo').replace(/\.[^.]+$/, '') : 'noLogo';
+    const safe = s => s.replace(/[^a-z0-9\-_]+/gi, '-').replace(/^-+|-+$/g,'');
+    return `${safe(bgBase)}_${safe(logoBase)}.png`;
+  }
+
+  async function exportPng(){
+    if(!state.bg){ showToast('Load a background frame first.', true); return; }
+    el.downloadBtn.disabled = true;
+    el.downloadBtn.textContent = 'Rendering…';
+    try{
+      const canvas = renderExportCanvas();
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      const arrBuf = await blob.arrayBuffer();
+      const withDpi = injectDpiIntoPng(arrBuf, state.bg.dpi);
+      const finalBlob = new Blob([withDpi], {type:'image/png'});
+
+      const url = URL.createObjectURL(finalBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = buildFilename();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=> URL.revokeObjectURL(url), 4000);
+
+      showToast(`Exported ${buildFilename()} (${state.bg.dpi} DPI)`);
+    }catch(err){
+      console.error(err);
+      showToast('Export failed — see console for details.', true);
+    }finally{
+      el.downloadBtn.disabled = false;
+      el.downloadBtn.textContent = 'Download PNG';
+    }
+  }
+  // ---------------------------------------------------------------------
+  // Live preview thumbnail — regenerated (debounced) on every state
+  // change, shown in the sidebar, and made draggable straight to Finder.
+  // ---------------------------------------------------------------------
+  let previewUpdateTimer = null;
+  function schedulePreviewUpdate(){
+    clearTimeout(previewUpdateTimer);
+    previewUpdateTimer = setTimeout(updatePreviewThumb, 120);
+  }
+  function updatePreviewThumb(){
+    if(!state.bg){
+      el.previewThumbWrap.classList.add('empty');
+      return;
+    }
+    el.previewThumbWrap.classList.remove('empty');
+    try{
+      const canvas = renderExportCanvas();
+      el.previewThumb.src = canvas.toDataURL('image/png');
+    }catch(e){ /* leave previous thumbnail showing */ }
+  }
+
+  // ---------------------------------------------------------------------
+  // Drag-out-to-Finder support: HTML5 draggable image of current preview,
+  // wired on both the main stage and the sidebar thumbnail.
+  // ---------------------------------------------------------------------
+  function attachDragOut(el2){
+    el2.setAttribute('draggable', 'true');
+    el2.addEventListener('dragstart', function(ev){
+      if(!state.bg) { ev.preventDefault(); return; }
+      // Build the PNG synchronously-ish: canvas.toDataURL is sync, use that
+      // for drag-out (DownloadURL trick). Full DPI injection happens on the
+      // explicit Download button since drag-out needs a same-tick URL and
+      // the pHYs-chunk write is comparatively cheap to skip here — the
+      // dragged file still carries correct pixel dimensions either way.
+      try{
+        const canvas = renderExportCanvas();
+        const dataUrl = canvas.toDataURL('image/png');
+        const filename = buildFilename();
+        ev.dataTransfer.setData('DownloadURL', `image/png:${filename}:${dataUrl}`);
+        ev.dataTransfer.effectAllowed = 'copy';
+      }catch(e){ /* ignore */ }
+    });
+  }
+
+  function wireDragOut(){
+    attachDragOut(el.stage);
+    attachDragOut(el.previewThumb);
+  }
+
+  // ---------------------------------------------------------------------
+  // Pointer drag-to-position on canvas
+  // ---------------------------------------------------------------------
+  function wireCanvasDrag(){
+    el.logoLayer.addEventListener('pointerdown', function(ev){
+      if(!state.logo) return;
+      ev.preventDefault();
+      state.dragging = true;
+      el.logoLayer.classList.add('dragging');
+      el.logoLayer.setPointerCapture(ev.pointerId);
+      state.dragStart = {
+        px: ev.clientX, py: ev.clientY,
+        offX: state.offsetX, offY: state.offsetY,
+      };
+      el.stage.focus();
+    });
+    el.logoLayer.addEventListener('pointermove', function(ev){
+      if(!state.dragging) return;
+      const scale = state.displayScale || 1;
+      const dx = (ev.clientX - state.dragStart.px) / scale;
+      const dy = (ev.clientY - state.dragStart.py) / scale;
+      state.offsetX = state.dragStart.offX + dx;
+      state.offsetY = state.dragStart.offY + dy;
+      positionLogo();
+    });
+    function endDrag(ev){
+      if(!state.dragging) return;
+      state.dragging = false;
+      el.logoLayer.classList.remove('dragging');
+    }
+    el.logoLayer.addEventListener('pointerup', endDrag);
+    el.logoLayer.addEventListener('pointercancel', endDrag);
+  }
+
+  // ---------------------------------------------------------------------
+  // Keyboard nudge
+  // ---------------------------------------------------------------------
+  function wireKeyboardNudge(){
+    el.stage.setAttribute('tabindex', '0');
+    el.stage.addEventListener('keydown', function(ev){
+      if(!state.logo) return;
+      const step = ev.shiftKey ? 10 : 1;
+      let handled = true;
+      switch(ev.key){
+        case 'ArrowLeft':  state.offsetX -= step; break;
+        case 'ArrowRight': state.offsetX += step; break;
+        case 'ArrowUp':    state.offsetY -= step; break;
+        case 'ArrowDown':  state.offsetY += step; break;
+        default: handled = false;
+      }
+      if(handled){
+        ev.preventDefault();
+        positionLogo();
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // File input / drop / paste wiring
+  // ---------------------------------------------------------------------
+  function wireDropTarget(targetEl, onFile, dragActiveTargets){
+    ['dragenter','dragover'].forEach(evt=>{
+      targetEl.addEventListener(evt, e=>{
+        e.preventDefault(); e.stopPropagation();
+        dragActiveTargets.forEach(t=>t.classList.add('drag-active'));
+      });
+    });
+    ['dragleave','drop'].forEach(evt=>{
+      targetEl.addEventListener(evt, e=>{
+        e.preventDefault(); e.stopPropagation();
+        if(evt === 'dragleave' && targetEl.contains(e.relatedTarget)) return;
+        dragActiveTargets.forEach(t=>t.classList.remove('drag-active'));
+      });
+    });
+    targetEl.addEventListener('drop', e=>{
+      const files = e.dataTransfer.files;
+      if(files && files.length) onFile(files[0]);
+    });
+  }
+
+  function wireClickToUpload(labelEl, inputEl, onFile){
+    inputEl.addEventListener('change', e=>{
+      if(e.target.files && e.target.files.length) onFile(e.target.files[0]);
+      inputEl.value = '';
+    });
+  }
+
+  function wirePaste(){
+    window.addEventListener('paste', function(e){
+      const items = (e.clipboardData || window.clipboardData).items;
+      if(!items) return;
+      for(let i=0;i<items.length;i++){
+        const item = items[i];
+        if(item.kind === 'file'){
+          const file = item.getAsFile();
+          if(!file) continue;
+          // Heuristic: if no background yet, paste goes to background slot;
+          // otherwise (or if background already set) paste goes to logo.
+          if(!state.bg){
+            loadBackground(file);
+          } else {
+            loadLogo(file);
+          }
+          e.preventDefault();
+          return;
+        }
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Wire up all controls
+  // ---------------------------------------------------------------------
+  async function useGeneratedFrame(){
+    const bg = await generateFrameBackground(FRAME_SPEC.width, FRAME_SPEC.height, FRAME_SPEC.dpi);
+    state.bg = bg;
+    deriveContentBox();
+    applyBackground();
+  }
+
+  function init(){
+    wireDropTarget(el.bgDropTarget, loadBackground, [el.bgDropTarget]);
+    wireDropTarget(el.logoDropTarget, loadLogo, [el.logoDropTarget]);
+    wireDropTarget(el.stageDropzone, function(file){
+      // whole-stage dropzone: fills background first, then logo
+      if(!state.bg) loadBackground(file); else loadLogo(file);
+    }, [el.stageDropzone.parentElement]);
+
+    el.bgDropTarget.addEventListener('click', ()=> el.bgFileInput.click());
+    el.logoDropTarget.addEventListener('click', ()=> el.logoFileInput.click());
+    wireClickToUpload(el.bgDropTarget, el.bgFileInput, loadBackground);
+    wireClickToUpload(el.logoDropTarget, el.logoFileInput, loadLogo);
+
+    wirePaste();
+
+    el.bgClear.addEventListener('click', function(){
+      state.bg = null;
+      el.bgSlot.classList.remove('ok');
+      el.bgName.textContent = 'No frame loaded';
+      el.bgMeta.textContent = 'PNG with embedded DPI';
+      el.emptyState.style.display = 'flex';
+      el.specPill.textContent = '—';
+      el.downloadBtn.disabled = true;
+      updateExportMeta();
+      schedulePreviewUpdate();
+    });
+
+    el.logoClear.addEventListener('click', function(){
+      state.logo = null;
+      el.logoLayer.classList.add('empty');
+      el.logoSlot.classList.remove('ok');
+      el.logoName.textContent = 'No logo loaded';
+      el.logoMeta.textContent = 'SVG, PNG, JPG, WEBP';
+      el.scaleSlider.disabled = true;
+      el.offsetXInput.disabled = true;
+      el.offsetYInput.disabled = true;
+      el.resetPosBtn.disabled = true;
+      el.downloadBtn.disabled = true;
+      updateExportMeta();
+      schedulePreviewUpdate();
+    });
+
+    el.scaleSlider.addEventListener('input', function(){
+      state.scalePct = parseFloat(el.scaleSlider.value);
+      updateScaleLabel();
+      positionLogo();
+    });
+
+    el.offsetXInput.addEventListener('change', function(){
+      state.offsetX = parseFloat(el.offsetXInput.value) || 0;
+      positionLogo();
+    });
+    el.offsetYInput.addEventListener('change', function(){
+      state.offsetY = parseFloat(el.offsetYInput.value) || 0;
+      positionLogo();
+    });
+
+    el.guidesToggle.addEventListener('change', drawGuides);
+    el.resetPosBtn.addEventListener('click', resetPosition);
+    el.downloadBtn.addEventListener('click', exportPng);
+    el.generateFrameBtn.addEventListener('click', useGeneratedFrame);
+
+    wireCanvasDrag();
+    wireKeyboardNudge();
+    wireDragOut();
+
+    window.addEventListener('resize', function(){
+      if(!state.bg) return;
+      layoutStage();
+      drawBackgroundCanvas();
+      drawBorderCanvas();
+      drawGuides();
+      positionLogo();
+    });
+
+    // Start from a ready-to-use generated frame rather than an empty
+    // dropzone, since the spec is fully known — uploading a custom
+    // background remains available at any time.
+    useGeneratedFrame();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

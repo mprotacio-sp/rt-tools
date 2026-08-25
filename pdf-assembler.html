@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Position Spec Assembler</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  :root {
+    --ink: #1f2429;
+    --ink-soft: #545b63;
+    --line: #dde1e5;
+    --line-soft: #eceff2;
+    --paper: #ffffff;
+    --canvas: #f6f7f8;
+    --accent: #2c5f6f;
+    --accent-soft: #e8f0f2;
+    --good: #2f6d47;
+    --good-soft: #eaf5ee;
+    --bad: #a4402a;
+    --bad-soft: #fbeee9;
+    --radius: 6px;
+    font-size: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--canvas);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+
+  .subtitle {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin: 0 0 32px;
+  }
+
+  section.card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 650;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h2 .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .instructions ol {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .instructions li {
+    margin-bottom: 8px;
+    font-size: 0.92rem;
+    color: var(--ink);
+  }
+
+  .instructions li:last-child { margin-bottom: 0; }
+
+  .placeholder-block {
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    background: var(--canvas);
+  }
+
+  .placeholder-block strong {
+    display: block;
+    color: var(--ink);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+
+  .naming-note {
+    margin-top: 14px;
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+  }
+
+  .naming-note code {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+
+  /* Drop zone */
+  #dropzone {
+    border: 2px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    background: var(--canvas);
+  }
+
+  #dropzone:hover,
+  #dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  #dropzone .dz-icon {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+    opacity: 0.6;
+  }
+
+  #dropzone .dz-primary {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  #dropzone .dz-secondary {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  #fileInput { display: none; }
+
+  .filename-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 8px 12px;
+    background: var(--accent-soft);
+    border-radius: var(--radius);
+    font-size: 0.88rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .filename-chip.visible { display: flex; }
+
+  /* Status / progress */
+  #statusArea { margin-top: 18px; }
+
+  .status-line {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: var(--bad-soft);
+    color: var(--bad);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    margin-top: 14px;
+  }
+
+  /* Results */
+  #resultsArea { display: none; margin-top: 24px; }
+  #resultsArea.visible { display: block; }
+
+  .result-summary {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--good);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .file-list {
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .file-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    font-size: 0.87rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .file-list li:last-child { border-bottom: none; }
+
+  .file-list.merged li { background: var(--good-soft); }
+  .file-list.ignored li { background: var(--bad-soft); }
+
+  .file-list .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .file-list.merged .badge { background: var(--good); color: white; }
+  .file-list.ignored .badge { background: var(--bad); color: white; }
+
+  .file-list .fname { flex: 1; word-break: break-all; }
+  .file-list .freason { color: var(--ink-soft); font-size: 0.82rem; flex-shrink: 0; }
+
+  .list-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin: 0 0 8px;
+  }
+
+  #downloadBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 22px;
+    font-size: 0.95rem;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  #downloadBtn:hover { background: #234c59; }
+
+  #resetBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  #resetBtn:hover { border-color: var(--ink-soft); color: var(--ink); }
+
+  .output-filename {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin-top: 12px;
+  }
+
+  .output-filename code {
+    background: var(--line-soft);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-top: 36px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Position Spec Assembler</h1>
+  <p class="subtitle">Turn your converted section PDFs into one finished document.</p>
+
+  <!-- STEP 1: Power Automate placeholder -->
+  <section class="card instructions">
+    <h2><span class="step-num">1</span>Generate your section PDFs in SharePoint</h2>
+    <div class="placeholder-block">
+      <strong>Placeholder — Power Automate instructions go here</strong>
+      [ Michael: replace this block with the step-by-step instructions for running the
+      "Generate PDF Spec" flow from SharePoint — selecting the project folder, running
+      the flow, and downloading the folder as a ZIP. ]
+    </div>
+  </section>
+
+  <!-- STEP 2: Tool instructions -->
+  <section class="card instructions">
+    <h2><span class="step-num">2</span>Assemble the final PDF</h2>
+    <ol>
+      <li>Download your project folder from SharePoint — most browsers will save it as a single <code>.zip</code> file automatically.</li>
+      <li>Drag that <code>.zip</code> file into the box below, or click the box to choose it from your computer.</li>
+      <li>The tool finds every PDF whose file name starts with a two-digit number and an underscore, and puts them in that order.</li>
+      <li>Review the lists that appear — one for files that were merged, one for anything that was skipped.</li>
+      <li>Click <strong>Download merged PDF</strong> to save the finished document.</li>
+    </ol>
+    <p class="naming-note">Only files named like <code>01_Cover.pdf</code>, <code>02_Position.pdf</code>, <code>03_Contact.pdf</code> are included. Anything without a leading two-digit number and underscore is left out and listed separately.</p>
+  </section>
+
+  <!-- STEP 3: Drop zone + processing -->
+  <section class="card">
+    <h2><span class="step-num">3</span>Upload &amp; merge</h2>
+
+    <div id="dropzone" tabindex="0" role="button" aria-label="Drop a zip file here or click to choose one">
+      <div class="dz-icon">&#8676;</div>
+      <div class="dz-primary">Drop your .zip file here</div>
+      <div class="dz-secondary">or click to browse</div>
+    </div>
+    <input type="file" id="fileInput" accept=".zip">
+
+    <div class="filename-chip" id="filenameChip">
+      <span id="filenameText"></span>
+    </div>
+
+    <div id="statusArea"></div>
+
+    <div id="resultsArea">
+      <div class="result-summary" id="resultSummary"></div>
+
+      <p class="list-label">Merged, in order</p>
+      <ul class="file-list merged" id="mergedList"></ul>
+
+      <p class="list-label" id="ignoredLabel" style="display:none;">Ignored</p>
+      <ul class="file-list ignored" id="ignoredList"></ul>
+
+      <div>
+        <button id="downloadBtn">&#8681; Download merged PDF</button>
+        <button id="resetBtn">Start over</button>
+      </div>
+      <p class="output-filename">Saved as <code id="outputFilename"></code></p>
+    </div>
+  </section>
+
+  <footer>Runs entirely in your browser — nothing is uploaded anywhere.</footer>
+
+</div>
+
+<script>
+(function () {
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const filenameChip = document.getElementById('filenameChip');
+  const filenameText = document.getElementById('filenameText');
+  const statusArea = document.getElementById('statusArea');
+  const resultsArea = document.getElementById('resultsArea');
+  const resultSummary = document.getElementById('resultSummary');
+  const mergedList = document.getElementById('mergedList');
+  const ignoredList = document.getElementById('ignoredList');
+  const ignoredLabel = document.getElementById('ignoredLabel');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const outputFilename = document.getElementById('outputFilename');
+
+  let mergedBlobUrl = null;
+  let mergedFileName = '';
+
+  const NAME_PATTERN = /^(\d{2})_.*\.pdf$/i;
+
+  // ---- Drag & drop wiring ----
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('drag-over');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('drag-over');
+    });
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFile(files[0]);
+    }
+  });
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFile(e.target.files[0]);
+    }
+  });
+
+  resetBtn.addEventListener('click', resetTool);
+
+  function resetTool() {
+    resultsArea.classList.remove('visible');
+    statusArea.innerHTML = '';
+    filenameChip.classList.remove('visible');
+    mergedList.innerHTML = '';
+    ignoredList.innerHTML = '';
+    fileInput.value = '';
+    if (mergedBlobUrl) {
+      URL.revokeObjectURL(mergedBlobUrl);
+      mergedBlobUrl = null;
+    }
+  }
+
+  function handleFile(file) {
+    resetTool();
+
+    const isZip = file.name.toLowerCase().endsWith('.zip') ||
+                  file.type === 'application/zip' ||
+                  file.type === 'application/x-zip-compressed';
+
+    if (!isZip) {
+      showError('That doesn\'t look like a .zip file. Download the project folder from SharePoint — most browsers save it as a .zip automatically — and drop that file here.');
+      return;
+    }
+
+    filenameText.textContent = file.name;
+    filenameChip.classList.add('visible');
+
+    processZip(file);
+  }
+
+  function showStatus(message) {
+    statusArea.innerHTML =
+      '<div class="status-line"><span class="spinner" aria-hidden="true"></span>' +
+      escapeHtml(message) + '</div>';
+  }
+
+  function showError(message) {
+    statusArea.innerHTML = '<div class="error-box">' + escapeHtml(message) + '</div>';
+  }
+
+  function clearStatus() {
+    statusArea.innerHTML = '';
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function processZip(file) {
+    try {
+      showStatus('Reading zip file…');
+      const zip = await JSZip.loadAsync(file);
+
+      const merged = [];   // { name, num }
+      const ignored = [];  // { name, reason }
+
+      const entries = Object.values(zip.files);
+
+      for (const entry of entries) {
+        if (entry.dir) continue;
+
+        // Use just the base filename, ignoring any folder path inside the zip
+        const parts = entry.name.split('/');
+        const baseName = parts[parts.length - 1];
+
+        if (!baseName) continue; // stray directory entries
+
+        const match = baseName.match(NAME_PATTERN);
+
+        if (!baseName.toLowerCase().endsWith('.pdf')) {
+          ignored.push({ name: baseName, reason: 'not a PDF' });
+          continue;
+        }
+
+        if (!match) {
+          ignored.push({ name: baseName, reason: 'no leading ##_' });
+          continue;
+        }
+
+        merged.push({
+          name: baseName,
+          num: parseInt(match[1], 10),
+          entry: entry
+        });
+      }
+
+      if (merged.length === 0) {
+        showError('No PDFs matching the "##_" naming pattern were found in this zip. Check that the SharePoint flow finished converting your files before downloading the folder.');
+        return;
+      }
+
+      // Sort numerically by the leading two-digit prefix, then alphabetically as a tiebreaker
+      merged.sort((a, b) => {
+        if (a.num !== b.num) return a.num - b.num;
+        return a.name.localeCompare(b.name);
+      });
+
+      showStatus('Merging ' + merged.length + ' PDF' + (merged.length === 1 ? '' : 's') + '…');
+
+      const { PDFDocument } = PDFLib;
+      const outDoc = await PDFDocument.create();
+
+      for (const item of merged) {
+        const bytes = await item.entry.async('uint8array');
+        let srcDoc;
+        try {
+          srcDoc = await PDFDocument.load(bytes);
+        } catch (err) {
+          // Move this file from merged to ignored if it can't actually be read as a PDF
+          ignored.push({ name: item.name, reason: 'could not be read as a PDF' });
+          continue;
+        }
+        const pageIndices = srcDoc.getPageIndices();
+        const copiedPages = await outDoc.copyPages(srcDoc, pageIndices);
+        copiedPages.forEach(p => outDoc.addPage(p));
+      }
+
+      const successfullyMerged = merged.filter(
+        m => !ignored.some(i => i.name === m.name && i.reason.includes('could not be read'))
+      );
+
+      if (successfullyMerged.length === 0) {
+        showError('None of the matching files could be read as valid PDFs. They may not have finished converting in SharePoint yet.');
+        return;
+      }
+
+      const outBytes = await outDoc.save();
+      const blob = new Blob([outBytes], { type: 'application/pdf' });
+      mergedBlobUrl = URL.createObjectURL(blob);
+      mergedFileName = 'mergedPDF_' + isoTimestamp() + '.pdf';
+
+      clearStatus();
+      showResults(successfullyMerged, ignored);
+
+    } catch (err) {
+      console.error(err);
+      showError('Something went wrong reading that zip file. Make sure it\'s the unmodified download from SharePoint and try again.');
+    }
+  }
+
+  function isoTimestamp() {
+    // YYYYMMDDHHmmSS, local time
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+      pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+
+  function showResults(merged, ignored) {
+    resultSummary.innerHTML = '&#10003; Merged ' + merged.length +
+      ' PDF' + (merged.length === 1 ? '' : 's') + ' into one document';
+
+    mergedList.innerHTML = merged.map((item, i) =>
+      '<li><span class="badge">' + (i + 1) + '</span>' +
+      '<span class="fname">' + escapeHtml(item.name) + '</span></li>'
+    ).join('');
+
+    if (ignored.length > 0) {
+      ignoredLabel.style.display = 'block';
+      ignoredList.innerHTML = ignored.map(item =>
+        '<li><span class="badge">&times;</span>' +
+        '<span class="fname">' + escapeHtml(item.name) + '</span>' +
+        '<span class="freason">' + escapeHtml(item.reason) + '</span></li>'
+      ).join('');
+    } else {
+      ignoredLabel.style.display = 'none';
+      ignoredList.innerHTML = '';
+    }
+
+    outputFilename.textContent = mergedFileName;
+    resultsArea.classList.add('visible');
+  }
+
+  downloadBtn.addEventListener('click', () => {
+    if (!mergedBlobUrl) return;
+    const a = document.createElement('a');
+    a.href = mergedBlobUrl;
+    a.download = mergedFileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+})();
+</script>
+
+</body>
+</html>
