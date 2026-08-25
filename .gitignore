@@ -1,0 +1,13 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Icon must end the line with two spaces
+Icon
+
+# Thumbnails
+.fseventsd
+.Spotlight-V100
+.Trashes
