@@ -474,8 +474,8 @@
       </div>
       <div class="empty-state" id="emptyState">
         <div class="icon">▤</div>
-        <strong>Load a background frame to begin</strong>
-        <span>Drop the frame PNG anywhere on this canvas, paste it (⌘V), or use the loader in the sidebar.</span>
+        <strong>Preparing your frame</strong>
+        <span>Your ready-to-use frame will appear here in a moment.</span>
       </div>
       <div class="dropzone-outer" id="stageDropzone"></div>
     </div>
@@ -485,30 +485,7 @@
   <div class="sidebar">
 
     <div class="section">
-      <p class="panel-title">1 · Background frame</p>
-      <div class="file-slot" id="bgSlot">
-        <div class="dot"></div>
-        <div class="txt">
-          <div class="name" id="bgName">No frame loaded</div>
-          <div class="meta" id="bgMeta">PNG with embedded DPI</div>
-        </div>
-        <button id="bgClear" title="Remove">✕</button>
-      </div>
-      <label class="drop-target" id="bgDropTarget">
-        Drop, paste, or click to choose frame
-        <span class="hint">Retains source DPI &amp; pixel size on export</span>
-        <input type="file" id="bgFileInput" accept="image/png,image/jpeg">
-      </label>
-      <div class="btn-row">
-        <button class="btn full" id="generateFrameBtn">Use generated frame (1800×600 spec)</button>
-      </div>
-      <p class="hint-text" id="generatedFrameHint">
-        Generated frames draw the border on top of the logo, so opaque logo backgrounds never cover the outline. Uploaded frames keep the border baked in beneath the logo.
-      </p>
-    </div>
-
-    <div class="section">
-      <p class="panel-title">2 · Logo</p>
+      <p class="panel-title">Drop logo</p>
       <div class="file-slot" id="logoSlot">
         <div class="dot"></div>
         <div class="txt">
@@ -518,14 +495,14 @@
         <button id="logoClear" title="Remove">✕</button>
       </div>
       <label class="drop-target" id="logoDropTarget">
-        Drop, paste, or click to choose logo
+        Drop logo here, or click to choose
         <span class="hint">Auto-fits inside the content box, centered</span>
         <input type="file" id="logoFileInput" accept="image/svg+xml,image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff">
       </label>
     </div>
 
     <div class="section">
-      <p class="panel-title">3 · Size &amp; position</p>
+      <p class="panel-title">Size &amp; position</p>
 
       <label class="field-label" for="scaleSlider">Scale</label>
       <div class="row">
@@ -566,7 +543,7 @@
     </div>
 
     <div class="section">
-      <p class="panel-title">4 · Export</p>
+      <p class="panel-title">Export</p>
       <div class="preview-thumb-wrap empty" id="previewThumbWrap">
         <img id="previewThumb" alt="Export preview" draggable="true">
       </div>
@@ -584,7 +561,7 @@
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="alert" aria-live="assertive"></div>
 
 <script>
 (function(){
@@ -641,14 +618,6 @@
     logoImg: document.getElementById('logoImg'),
     emptyState: document.getElementById('emptyState'),
     stageDropzone: document.getElementById('stageDropzone'),
-
-    bgSlot: document.getElementById('bgSlot'),
-    bgName: document.getElementById('bgName'),
-    bgMeta: document.getElementById('bgMeta'),
-    bgClear: document.getElementById('bgClear'),
-    bgDropTarget: document.getElementById('bgDropTarget'),
-    bgFileInput: document.getElementById('bgFileInput'),
-    generateFrameBtn: document.getElementById('generateFrameBtn'),
 
     logoSlot: document.getElementById('logoSlot'),
     logoName: document.getElementById('logoName'),
@@ -977,10 +946,6 @@
     el.emptyState.style.display = 'none';
     const bg = state.bg;
 
-    el.bgSlot.classList.add('ok');
-    el.bgName.textContent = bg.name;
-    const bgSizeTxt = bg.generated ? 'generated from spec' : fmtBytes(bg.size);
-    el.bgMeta.textContent = `${bg.width} × ${bg.height}px · ${bg.dpi} DPI · ${bgSizeTxt}`;
     el.specPill.textContent = `${bg.width} × ${bg.height} · ${bg.dpi} DPI`;
 
     layoutStage();
@@ -1251,10 +1216,9 @@
   }
 
   function buildFilename(){
-    const bgBase = (state.bg.name||'frame').replace(/\.[^.]+$/, '');
     const logoBase = state.logo ? (state.logo.name||'logo').replace(/\.[^.]+$/, '') : 'noLogo';
     const safe = s => s.replace(/[^a-z0-9\-_]+/gi, '-').replace(/^-+|-+$/g,'');
-    return `${safe(bgBase)}_${safe(logoBase)}.png`;
+    return `${safe(logoBase)}.3x1.png`;
   }
 
   async function exportPng(){
@@ -1456,31 +1420,15 @@
   }
 
   function init(){
-    wireDropTarget(el.bgDropTarget, loadBackground, [el.bgDropTarget]);
     wireDropTarget(el.logoDropTarget, loadLogo, [el.logoDropTarget]);
     wireDropTarget(el.stageDropzone, function(file){
-      // whole-stage dropzone: fills background first, then logo
-      if(!state.bg) loadBackground(file); else loadLogo(file);
+      loadLogo(file);
     }, [el.stageDropzone.parentElement]);
 
-    el.bgDropTarget.addEventListener('click', ()=> el.bgFileInput.click());
     el.logoDropTarget.addEventListener('click', ()=> el.logoFileInput.click());
-    wireClickToUpload(el.bgDropTarget, el.bgFileInput, loadBackground);
     wireClickToUpload(el.logoDropTarget, el.logoFileInput, loadLogo);
 
     wirePaste();
-
-    el.bgClear.addEventListener('click', function(){
-      state.bg = null;
-      el.bgSlot.classList.remove('ok');
-      el.bgName.textContent = 'No frame loaded';
-      el.bgMeta.textContent = 'PNG with embedded DPI';
-      el.emptyState.style.display = 'flex';
-      el.specPill.textContent = '—';
-      el.downloadBtn.disabled = true;
-      updateExportMeta();
-      schedulePreviewUpdate();
-    });
 
     el.logoClear.addEventListener('click', function(){
       state.logo = null;
@@ -1515,7 +1463,6 @@
     el.guidesToggle.addEventListener('change', drawGuides);
     el.resetPosBtn.addEventListener('click', resetPosition);
     el.downloadBtn.addEventListener('click', exportPng);
-    el.generateFrameBtn.addEventListener('click', useGeneratedFrame);
 
     wireCanvasDrag();
     wireKeyboardNudge();
