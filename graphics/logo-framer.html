@@ -1217,8 +1217,8 @@
 
   function buildFilename(){
     const logoBase = state.logo ? (state.logo.name||'logo').replace(/\.[^.]+$/, '') : 'noLogo';
-    const safe = s => s.replace(/[^a-z0-9\-_]+/gi, '-').replace(/^-+|-+$/g,'');
-    return `${safe(logoBase)}.3x1.png`;
+    const safe = s => s.replace(/[^a-z0-9_ -]+/gi, '-').replace(/^-+|-+$/g,'');
+    return `${safe(logoBase)}_3x1.png`;
   }
 
   async function exportPng(){
