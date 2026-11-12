@@ -124,15 +124,12 @@
           <option value="1200">1200 × 1200</option>
         </select>
       </div>
-<!-- 
       <div class="group">
-        <label for="exportMask">Mask options:</label>
-        <select id="exportMask">
-          <option value="unmasked"selected>disable mask (show area outside of circle)</option>
-          <option value="masked">mask output (hide area outside of circle)</option>
-        </select>
+        <label class="row" for="maskOutput" style="margin-bottom:8px">
+          <input id="maskOutput" type="checkbox">
+          Mask output to circle (transparent outside)
+        </label>
       </div>
- -->
       <div class="row" style="margin-bottom:8px">
         <button id="downloadBtn" class="btn small">Download PNG</button>
         <button id="copyBtn" class="btn small">Copy to clipboard</button>
@@ -185,7 +182,7 @@ const nudgePx = document.getElementById('nudgePx');
 
 const bgColor = document.getElementById('bgColor');
 
-// const exportMask = document.getElementById('exportMask');
+const maskOutput = document.getElementById('maskOutput');
 
 const vectorOpacity = document.getElementById('vectorOpacity');
 const vectorVal = document.getElementById('vectorVal');
@@ -204,16 +201,9 @@ let state = {
   ty: 0,
   vectorOn: true,
   vectorOpacity: parseFloat(vectorOpacity.value),
-  bgColor: bgColor.value
+  bgColor: bgColor.value,
+  maskOutput: false
 };
-/* 
-let maskMode = "unmasked"; // or "masked"
-
-document.getElementById("exportMask").addEventListener("change", (e) => {
-  maskMode = e.target.value;
-  drawPreview();
-});
- */
 
 /* Helpers */
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -314,23 +304,19 @@ function draw(){
   }
 }
 
-/* Export Square PNG (without mask or vector guide) */
+/* Export Square PNG (optional mask, without vector guide) */
 async function exportPNG(size){
   const out = document.createElement('canvas');
   out.width = size; out.height = size;
   const octx = out.getContext('2d', { alpha: true });
   const sf = size / canvasSize;
 
-/* 
-  if (maskMode === "masked") {
-    // clip to circle scaled
+  if (state.maskOutput) {
     octx.save();
     octx.beginPath();
     octx.arc(circle.x*sf, circle.y*sf, circle.r*sf, 0, Math.PI*2);
-    octx.closePath();
     octx.clip();
   }
- */
 
   // fill background color inside circle
   octx.fillStyle = state.bgColor;
@@ -433,9 +419,11 @@ function resetAll(){
   srcBitmap = null;
   state.angleDeg = 0; state.scale = 1; state.tx = 0; state.ty = 0;
   state.vectorOn = true;
+  state.maskOutput = false;
 
   // Reset UI inputs to default values
   bgColor.value = '#ffffff';
+  maskOutput.checked = false;
   vectorOpacity.value = 0.45;
   document.getElementById('vectorVal').textContent = '0.45';
 
@@ -527,15 +515,9 @@ bgColor.addEventListener('input', (e)=>{ state.bgColor = e.target.value; draw();
 vectorOpacity.addEventListener('input', (e)=>{ state.vectorOpacity = parseFloat(e.target.value); vectorVal.textContent = state.vectorOpacity.toFixed(2); draw(); });
 // toggleVector.addEventListener('click', ()=>{ state.vectorOn = !state.vectorOn; toggleVector.textContent = state.vectorOn ? 'Hide guide' : 'Show guide'; draw(); });
 
-/* Redraw preview immediately when user interacts with the mask mode dropdown */
-/* 
-['change', 'click'].forEach(evt =>
-  exportMask.addEventListener(evt, (e) => {
-    maskMode = e.target.value;
-    draw();
-  })
-);
- */
+maskOutput.addEventListener('change', (e)=>{
+  state.maskOutput = e.target.checked;
+});
 /* Download & Copy (both use exportPNG which excludes vector guide) */
 downloadBtn.addEventListener('click', async ()=>{
   const size = Number(exportSize.value) || 600;
