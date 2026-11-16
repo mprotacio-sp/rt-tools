@@ -4,32 +4,194 @@
 <meta name="robots" content="noindex, nofollow">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Headshot Framer — single-file (vector overlay)</title>
+<title>Headshot Framer Tool</title>
 <style>
   :root{--bg:#f3f4f6;--panel:#fff;--accent:#0b5fff;--muted:#6b7280;}
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
-  body{background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:24px;}
-  .app{display:grid;grid-template-columns:640px 360px;gap:20px;width:100%;max-width:1024px;}
-  .canvas-wrap{background:var(--panel);padding:16px;border-radius:12px;box-shadow:0 6px 22px rgba(15,23,42,0.06);}
-  .controls{background:var(--panel);padding:16px;border-radius:12px;box-shadow:0 6px 22px rgba(15,23,42,0.06);height:fit-content;}
-  canvas{width:600px;height:600px;background:transparent;border-radius:8px;display:block;cursor:grab;}
+  body{background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:24px;box-sizing:border-box;}
+  .page{width:100%;max-width:1160px}
+.app{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  width:100%;
+  max-width:1072px;
+}
+.canvas-wrap{
+  background:#d9d9d9;
+  padding:14px;
+  border-radius:12px;
+  box-shadow:0 6px 22px rgba(15,23,42,0.06);
+}
+.controls{
+  background:var(--panel);
+  padding:16px;
+  border-radius:12px;
+  box-shadow:0 6px 22px rgba(15,23,42,0.06);
+  height:fit-content;
+}
+  canvas{width:300px;height:300px;background:transparent;border-radius:8px;display:block;cursor:grab;}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
   button, input[type="color"], select{padding:8px 10px;border-radius:8px;border:1px solid #e6e7ea;background:white;cursor:pointer;}
   .btn {display:inline-flex;align-items:center;gap:8px}
   .small{font-size:13px;padding:6px 8px}
-  .group{margin-bottom:12px}
-  .color-button {display: inline-block;width: 80%;height: 50px;border-radius: 4px;border: 1px solid #ccc;overflow: hidden;position: relative;}
-  .color-button input[type="color"] {position: absolute;top: 0; left: 0;width: 100%;height: 100%;border: none;padding: 1;cursor: pointer;}
-  .color-emoji {z-index: 2;}
+  .control-section{padding:14px 0;border-top:1px solid #e6e7ea}
+  .control-section:first-of-type{border-top:0;padding-top:0}
+.native-color-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #ffffff;
+}
+
+.correction-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-preview{
+  background:#fff;
+  min-height:290px;
+  box-sizing:border-box;
+  padding:  48px 96px 96px 96px ;
+  border:1px solid #c9c9c9;
+  box-shadow:0 1px 2px rgba(0,0,0,.08);
+  font-family: Roboto, Arial, sans-serif;
+  color:#111;
+}
+
+.document-meta{
+  display:flex;
+  gap:8px;
+  margin-bottom:34px;
+  font-size:14px;
+  color:#868686;
+}
+
+.candidate-block{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  align-items:stretch;
+}
+
+.headshot-cell{
+  width:120px;
+  height:120px;
+  box-sizing:border-box;
+}
+
+.sample-list{
+  margin:22px 0 0;
+  padding:0;
+  list-style:none;
+  font-size:14px;
+  line-height:1.5;
+}
+
+.sample-list li{
+  position:relative;
+  margin:0;
+  padding:0 0 0 20px;
+}
+
+.sample-list li::before{
+  content:"•";
+  position:absolute;
+  left:0;
+  width:20px;
+  text-align:left;
+}
+
+#preview{
+  width:120px;
+  height:120px;
+  display:block;
+  background:transparent;
+  border-radius:0;
+  cursor:grab;
+}
+
+.candidate-info{
+  min-width:0;
+  padding-left:20px;
+}
+
+.candidate-name{
+  font-size:38px;
+  line-height:1;
+  color:#002b69;
+  margin:2px 0 10px;
+}
+
+.candidate-details{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:20px;
+  font-size:14px;
+  line-height:1.5;
+}
+
+.linkedin-placeholder{
+  text-align:right;
+  white-space:nowrap;
+}
+
+.sample-paragraph{
+  margin-top:22px;
+  font-size:14px;
+}
+
   label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
   .row{display:flex;gap:8px;align-items:center}
-  .value{font-weight:600;margin-left:6px;color:var(--accent)}
+  .transform-row{gap:6px}
+  .transform-row button{padding:6px}
+  .transform-row .numeric{width:58px;flex:none}
+  .transform-row input[type="range"]{min-width:40px}
   .controls h3{margin:0 0 8px 0;font-size:16px}
-  .note{font-size:12px;color:var(--muted);margin-top:8px}
   input[type=file]{display:none}
-  .file-label{padding: 6px 8px;position: relative;top: 3px; display:inline-flex;align-items:center;justify-content:center;border:1px dashed #e6e7ea;border-radius:8px;line-height: 1;}
   .numeric{width:80px;padding:6px;border-radius:6px;border:1px solid #e6e7ea}
-  .title {font-weight:700;margin-bottom:6px}
+  .inline-label{margin:0;min-width:76px}
+  .offset-value{width:64px}
+  .section-description{font-size:13px;line-height:1.45;color:var(--muted);margin:0 0 12px}
+  .status{font-size:12px;color:#b42318;min-height:1em;margin-top:6px}
+  .input-layout .section-description{margin:0 0 12px}
+  .input-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .input-actions .btn{justify-content:center}
+  .input-actions #clearBtn{margin-left:auto}
+  .input-actions .status{margin:0 0 0 8px;max-width:180px}
+  .transform-steps{display:flex;flex-direction:column;gap:12px}
+  .transform-step+.transform-step{border-top:1px solid #e6e7ea;padding-top:12px}
+  .transform-step h4{font-size:14px;margin:0 0 4px}
+  .transform-step .section-description{margin-bottom:8px}
+  .transform-position{display:flex;flex-direction:column;gap:8px}
+  .correction-layout{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center}
+  .correction-copy .section-description{margin-bottom:0}
+  .correction-actions{display:flex;align-items:center;gap:8px}
+  .export-options{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:12px}
+  .export-options .inline-label{min-width:0}
+  .export-options label.row{margin:0}
+  .export-actions{display:flex;gap:8px;align-items:center}
+  @media(max-width:1120px){
+    .app{grid-template-columns:332px minmax(0,1fr)}
+  }
+  @media(max-width:900px){
+    body{padding:16px}
+    .app{grid-template-columns:1fr;max-width:720px}
+    .controls{max-height:none;overflow:visible}
+  }
 </style>
 
 <!--[if gte mso 9]><xml>
@@ -41,102 +203,169 @@
 </xml><![endif]-->
 </head>
 <body>
-<div class="app" role="application" aria-label="Headshot framer">
-  <div class="canvas-wrap">
-    <div class="toolbar">
-      <div style="flex:1"></div>
-      <button id="fitBtn" class="small">Fit to frame</button>
-      <button id="resetBtn" class="small">Reset</button>
-    </div>
-    
-    <canvas id="preview" width="600" height="600" aria-label="Preview canvas"></canvas>
-    
-    <!-- <div class="note">Drag the image to reposition. Use arrows or slider for rotation/scale. Overlay is a guide only (not exported).</div> -->
-  </div>
-  
-  <aside class="controls" aria-label="Controls">
-    <h3>Input Image</h3>
-      <div class="toolbar">
-        <label class="file-label btn small" title="Upload image">Upload
-          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp">
-        </label>
-        <button id="pasteBtn" class="btn small" title="Paste image from clipboard (Ctrl/Cmd+V)">Paste (Ctrl/Cmd+V)</button>
-      </div>
+<main class="page">
+  <header class="page-header">
+    <h1>Headshot Framer Tool</h1>
+    <p>Use this tool to crop image to a circle. Upload or paste an image, then position and adjust it in the preview before exporting.</p>
+  </header>
+  <div class="app" role="application" aria-label="Headshot framer">
+    <div class="canvas-wrap">
+      <div class="document-preview">
 
-    <div class="group">
-      <h3>Transform</h3>
-      
-      <label>Rotate</label>
-      <div class="row" style="align-items:center">
-        <button id="rotDec" class="small">◀︎</button>
-        <button id="rotInc" class="small">▶︎</button>
-        <input id="rotDisplay" class="numeric" readonly value="0.0">
-        <input id="rotRange" type="range" min="-180" max="180" step="1" style="flex:1">
-      </div>
-      
-      <label style="margin-top:8px">Scale (zoom)</label>
-      <div class="row">
-        <button id="scaleDec" class="small">−</button>
-        <button id="scaleInc" class="small">+</button>
-        <input id="scaleDisplay" class="numeric" readonly value="1.00">
-        <input id="scaleRange" type="range" min="0.1" max="10" step="0.01" style="flex:1">
-      </div>
-      
-      <label style="margin-top:8px">Nudge / arrow moves (px)</label>
-      <div class="row">
-        <button id="leftBtn" class="small">←</button>
-        <button id="downBtn" class="small">↓</button>
-        <button id="upBtn" class="small">↑</button>
-        <button id="rightBtn" class="small">→</button>
-        <input id="nudgePx" class="numeric" value="5">
-      </div>
-
-      <label style="margin-top:12px">Alignment Guide Transparency</label>
-      <div class="group">
-        <div style="display:flex;gap:8px;align-items:center">
-          <input id="vectorOpacity" type="range" min="0" max="1" step="0.01" value="0.45" style="flex:1">
-          <span id="vectorVal" class="value">0.45</span>
+        <div class="document-meta">
+          <span>[Search]</span>
+          <span>[Client]</span>
         </div>
-        <div class="note">Feel free to adjust this if the guide is distracting or the image is unconventionally framed. <br> NOTE: Guide will NOT be visible in exported image.</div>
+
+        <div class="candidate-block">
+          <div class="headshot-cell">
+            <canvas
+              id="preview"
+              width="600"
+              height="600"
+              aria-label="Preview canvas">
+            </canvas>
+          </div>
+
+          <div class="candidate-info">
+            <div class="candidate-name">Candidate Name</div>
+
+            <div class="candidate-details">
+              <div>
+                <div>Sample Candidate Title</div>
+                <div>Sample Company</div>
+                <div>Anytown, USA</div>
+              </div>
+
+              <div class="linkedin-placeholder">
+                View LinkedIn Profile
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sample-list">
+          <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</li>
+          <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</li>
+        </div>
+
       </div>
     </div>
 
-    <h3>Background Color (optional)</h3>
+    <aside class="controls" aria-label="Controls">
+      <section class="control-section" aria-labelledby="inputHeading">
+        <h3 id="inputHeading">INPUT</h3>
+        <div class="input-layout">
+          <p class="section-description">Upload or paste an image to begin.</p>
+          <div class="input-actions">
+            <button id="uploadBtn" class="btn small" type="button">Upload image</button>
+            <button id="pasteBtn" class="btn small" type="button" title="Paste an image from the clipboard">Paste image</button>
+            <button id="clearBtn" class="btn small" type="button" title="Clear the image and reset all settings">Clear</button>
+            <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp">
+            <p id="pasteStatus" class="status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </section>
 
-    <div class="group">
-      <label>If the edge of the photo is visible inside the circular frame, click the below swatch, then either (A) select a neutral background color or (B) use the eyedropper tool to match the photo's background color.</label>
-      <div class="row">
-        <label for="bgColor" class="color-button">
-          <span class="color-emoji" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; pointer-events: none;">🎨</span>
-          <input id="bgColor" type="color" value="#ffffff">
-        </label>
-      </div>
-    </div>
+      <section class="control-section" aria-labelledby="transformHeading">
+        <h3 id="transformHeading">TRANSFORM</h3>
+        <div class="transform-steps">
+          <div class="transform-step">
+            <h4>1. Zoom</h4>
+            <p class="section-description">Roughly center the image by dragging. Zoom to fit the face to the silhouette outline.</p>
+            <div class="row transform-row">
+              <button id="scaleDec" class="small">−</button>
+              <button id="scaleInc" class="small">+</button>
+              <input id="scaleDisplay" class="numeric" readonly value="1.00">
+              <input id="scaleRange" type="range" min="0.1" max="10" step="0.01" style="flex:1">
+              <button id="resetScaleBtn" class="small" type="button" title="Reset scale to the fitted size">Reset</button>
+            </div>
+          </div>
+          <div class="transform-step">
+            <h4>2. Rotate</h4>
+            <p class="section-description">When rotating, if the background contains strong vertical or horizontal lines, try to keep them vertical or horizontal rather than straightening the subject's face.</p>
+            <div class="row transform-row">
+              <button id="rotDec" class="small"><</button>
+              <button id="rotInc" class="small">></button>
+              <input id="rotDisplay" class="numeric" readonly value="0.0°" aria-label="Rotation in degrees">
+              <input id="rotRange" type="range" min="-180" max="180" step="1" style="flex:1">
+              <button id="resetRotationBtn" class="small" type="button" title="Reset rotation">Reset</button>
+            </div>
+          </div>
+          <div class="transform-step">
+            <h4>3. Transform</h4>
+            <p class="section-description">Reposition the image by dragging with the mouse, or use the arrow keys to nudge it one pixel at a time.</p>
+            <div class="transform-position">
+              <div class="row">
+                <label class="inline-label" for="offsetX">X (px)</label>
+                <input id="offsetX" class="numeric offset-value" readonly value="0.0">
+                <button id="resetXBtn" class="small" type="button" title="Reset horizontal offset">Reset</button>
+              </div>
+              <div class="row">
+                <label class="inline-label" for="offsetY">Y (px)</label>
+                <input id="offsetY" class="numeric offset-value" readonly value="0.0">
+                <button id="resetYBtn" class="small" type="button" title="Reset vertical offset">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
+      <section class="control-section" aria-labelledby="correctionsHeading">
+        <h3 id="correctionsHeading">CORRECTIONS</h3>
+        <div class="correction-layout">
+          <div class="correction-copy">
+            <p class="section-description">If the photo edge shows inside the circular frame, choose a neutral color or use the eyedropper to sample the photo background. This color fills transparent areas behind the photo.</p>
+          </div>
+          <div class="correction-actions">
+            <button id="customColorBtn" class="btn small" type="button">
+              Select custom color
+            </button>
 
-    <div class="group">
-      <h3>Output</h3>
-      <div class="row" style="margin-bottom:8px">
-        <label>Export size:</label>
-        <select id="exportSize" class="numeric" style="width:fit-content">
-          <option value="600">600 × 600 (default)</option>
-          <option value="300">300 × 300</option>
-          <option value="1200">1200 × 1200</option>
-        </select>
-      </div>
-      <div class="group">
-        <label class="row" for="maskOutput" style="margin-bottom:8px">
-          <input id="maskOutput" type="checkbox">
-          Mask output to circle (transparent outside)
-        </label>
-      </div>
-      <div class="row" style="margin-bottom:8px">
-        <button id="downloadBtn" class="btn small">Download PNG</button>
-        <button id="copyBtn" class="btn small">Copy to clipboard</button>
-      </div>
-    </div>
-  </aside>
-</div>
+            <span
+              id="bgColorSwatch"
+              class="color-swatch"
+              title="#ffffff"
+              aria-label="Current background color: #ffffff">
+            </span>
+            
+            <!-- Keep the native color input, but hide it visually -->
+            <input
+            id="bgColor"
+            type="color"
+            value="#ffffff"
+            aria-label="Choose background color"
+            class="native-color-input">
+
+            <button id="resetBgColorBtn" class="small" type="button">
+              Reset
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-section" aria-labelledby="exportHeading">
+        <h3 id="exportHeading">EXPORT SETTINGS</h3>
+        <div class="export-options">
+          <label for="exportSize" class="inline-label">Export size</label>
+          <select id="exportSize" class="numeric" style="width:fit-content">
+            <option value="600">600 × 600 (default)</option>
+            <option value="300">300 × 300</option>
+            <option value="1200">1200 × 1200</option>
+          </select>
+          <label class="row" for="maskOutput" style="margin-bottom:8px">
+            <input id="maskOutput" type="checkbox" checked>
+            Mask output to circle (transparent outside)
+          </label>
+        </div>
+        <div class="export-actions">
+          <button id="copyBtn" class="btn small">Copy to clipboard</button>
+          <button id="downloadBtn" class="btn small">Download PNG</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
 
 <script>
 /*
@@ -160,32 +389,35 @@ const preview = document.getElementById('preview');
 const ctx = preview.getContext('2d', { alpha: true });
 
 const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
 const pasteBtn = document.getElementById('pasteBtn');
-const fitBtn = document.getElementById('fitBtn');
-const resetBtn = document.getElementById('resetBtn');
+const clearBtn = document.getElementById('clearBtn');
+const pasteStatus = document.getElementById('pasteStatus');
 
 const rotDec = document.getElementById('rotDec');
 const rotInc = document.getElementById('rotInc');
 const rotRange = document.getElementById('rotRange');
 const rotDisplay = document.getElementById('rotDisplay');
+const resetRotationBtn = document.getElementById('resetRotationBtn');
 
 const scaleDec = document.getElementById('scaleDec');
 const scaleInc = document.getElementById('scaleInc');
 const scaleDisplay = document.getElementById('scaleDisplay');
 const scaleRange = document.getElementById('scaleRange');
+const resetScaleBtn = document.getElementById('resetScaleBtn');
 
-const upBtn = document.getElementById('upBtn');
-const downBtn = document.getElementById('downBtn');
-const leftBtn = document.getElementById('leftBtn');
-const rightBtn = document.getElementById('rightBtn');
-const nudgePx = document.getElementById('nudgePx');
+const offsetX = document.getElementById('offsetX');
+const offsetY = document.getElementById('offsetY');
+const resetXBtn = document.getElementById('resetXBtn');
+const resetYBtn = document.getElementById('resetYBtn');
 
 const bgColor = document.getElementById('bgColor');
+const customColorBtn = document.getElementById('customColorBtn');
+const bgColorSwatch = document.getElementById('bgColorSwatch');
+const resetBgColorBtn = document.getElementById('resetBgColorBtn');
 
 const maskOutput = document.getElementById('maskOutput');
 
-const vectorOpacity = document.getElementById('vectorOpacity');
-const vectorVal = document.getElementById('vectorVal');
 // const toggleVector = document.getElementById('toggleVector');
 
 const downloadBtn = document.getElementById('downloadBtn');
@@ -194,26 +426,28 @@ const exportSize = document.getElementById('exportSize');
 
 /* STATE */
 let srcBitmap = null; // ImageBitmap (fast to draw)
+let fittedScale = 1;
 let state = {
   angleDeg: 0.0,
   scale: 1.0,
   tx: 0,
   ty: 0,
   vectorOn: true,
-  vectorOpacity: parseFloat(vectorOpacity.value),
+  guideVisibility: 0.55,
   bgColor: bgColor.value,
-  maskOutput: false
+  maskOutput: maskOutput.checked
 };
 
 /* Helpers */
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function deg2rad(d){return d*Math.PI/180;}
 function setDisplays(){
-  rotDisplay.value = state.angleDeg.toFixed(1);
+  rotDisplay.value = state.angleDeg.toFixed(1) + '°';
   scaleDisplay.value = state.scale.toFixed(2);
+  offsetX.value = state.tx.toFixed(1);
+  offsetY.value = state.ty.toFixed(1);
   rotRange.value = Math.round(state.angleDeg);
   scaleRange.value = state.scale;
-  vectorVal.textContent = state.vectorOpacity.toFixed(2);
 }
 
 /* draw vector guide path (head-and-shoulders silhouette).
@@ -284,7 +518,7 @@ function draw(){
   ctx.beginPath();
   ctx.arc(circle.x, circle.y, circle.r+0.5, 0, Math.PI*2);
   ctx.closePath();
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 4;
   ctx.strokeStyle = "rgba(255,0,255,1)";
   ctx.stroke();
   ctx.restore();
@@ -292,9 +526,9 @@ function draw(){
   // 5. Draw vector guide on top (non-exported)
   if (state.vectorOn){
     ctx.save();
-    ctx.globalAlpha = 1 - state.vectorOpacity;
+    ctx.globalAlpha = state.guideVisibility;
     ctx.strokeStyle = "rgba(255,0,255,1)";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 5;
     // Draw guide path centered in canvas by translating inside helper
     // We'll draw to a temporary path using an offscreen path, then stroke
     // Implemented by calling drawVectorGuide which appends to context path
@@ -407,8 +641,8 @@ async function loadBlobToBitmap(blob){
 function fitBitmapToFrame(bitmap){
   const diameter = circle.r * 2;
   const w = bitmap.width, h = bitmap.height;
-  const scale = Math.max(diameter / w, diameter / h);
-  state.scale = scale;
+  fittedScale = Math.max(diameter / w, diameter / h);
+  state.scale = fittedScale;
   state.angleDeg = 0;
   state.tx = 0; state.ty = 0;
   setDisplays(); draw();
@@ -416,27 +650,38 @@ function fitBitmapToFrame(bitmap){
 
 /* Reset */
 function resetAll(){
+  if (srcBitmap && typeof srcBitmap.close === 'function') srcBitmap.close();
   srcBitmap = null;
+  fittedScale = 1;
   state.angleDeg = 0; state.scale = 1; state.tx = 0; state.ty = 0;
   state.vectorOn = true;
 
   // Reset UI inputs to default values
   bgColor.value = '#ffffff';
-  vectorOpacity.value = 0.45;
-  document.getElementById('vectorVal').textContent = '0.45';
+  bgColorSwatch.style.backgroundColor = '#ffffff';
+  bgColorSwatch.title = '#ffffff';
+  bgColorSwatch.setAttribute(
+    'aria-label',
+    'Current background color: #ffffff'
+  );
+  maskOutput.checked = true;
+  exportSize.value = '600';
+  fileInput.value = '';
+  pasteStatus.textContent = '';
 
   // Reset state based on those defaults
-  state.vectorOpacity = parseFloat(vectorOpacity.value);
+  state.guideVisibility = 0.55;
   state.bgColor = bgColor.value;
+  state.maskOutput = maskOutput.checked;
 
   setDisplays();
-  ctx.clearRect(0,0,canvasSize,canvasSize);
   draw();
 }
 
 /* ---- Event wiring ---- */
 
 /* File upload */
+uploadBtn.addEventListener('click', ()=> fileInput.click());
 fileInput.addEventListener('change', async (e)=>{
   const f = e.target.files && e.target.files[0];
   if (!f) return;
@@ -450,7 +695,34 @@ fileInput.addEventListener('change', async (e)=>{
 });
 
 /* Paste handling */
-pasteBtn.addEventListener('click', ()=>{ window.focus(); alert('Now paste (Ctrl/Cmd+V) an image from the clipboard.'); });
+async function pasteClipboardImage(blob){
+  if (!blob) throw new Error('No image data was found.');
+  const bmp = await loadBlobToBitmap(blob);
+  if (srcBitmap && typeof srcBitmap.close === 'function') srcBitmap.close();
+  srcBitmap = bmp;
+  pasteStatus.textContent = '';
+  fitBitmapToFrame(srcBitmap);
+}
+
+pasteBtn.addEventListener('click', async ()=>{
+  pasteStatus.textContent = '';
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      throw new Error('Clipboard image access is not available in this browser.');
+    }
+    const items = await navigator.clipboard.read();
+    for (const item of items){
+      const imageType = item.types.find(type => type.indexOf('image/') === 0);
+      if (imageType) {
+        await pasteClipboardImage(await item.getType(imageType));
+        return;
+      }
+    }
+    throw new Error('No image found on the clipboard.');
+  } catch(err){
+    pasteStatus.textContent = err && err.message ? err.message : String(err);
+  }
+});
 window.addEventListener('paste', async (ev) => {
   const items = ev.clipboardData && ev.clipboardData.items;
   if (!items) return;
@@ -459,11 +731,9 @@ window.addEventListener('paste', async (ev) => {
     if (it.type.indexOf('image') !== -1){
       const blob = it.getAsFile();
       try {
-        const bmp = await loadBlobToBitmap(blob);
-        srcBitmap = bmp;
-        fitBitmapToFrame(srcBitmap);
+        await pasteClipboardImage(blob);
       } catch(err){
-        alert('Could not read pasted image: ' + (err && err.message ? err.message : err));
+        pasteStatus.textContent = err && err.message ? err.message : String(err);
       }
       ev.preventDefault();
       return;
@@ -486,31 +756,56 @@ preview.addEventListener('drop', async (e)=>{
 });
 
 /* Fit & reset */
-fitBtn.addEventListener('click', ()=>{ if (srcBitmap) fitBitmapToFrame(srcBitmap); });
-resetBtn.addEventListener('click', resetAll);
+clearBtn.addEventListener('click', resetAll);
 
 /* Rotation controls */
 rotDec.addEventListener('click', ()=>{ state.angleDeg = +(state.angleDeg - ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); });
 rotInc.addEventListener('click', ()=>{ state.angleDeg = +(state.angleDeg + ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); });
 rotRange.addEventListener('input', (e)=>{ state.angleDeg = +e.target.value; setDisplays(); draw(); });
+resetRotationBtn.addEventListener('click', ()=>{ state.angleDeg = 0; setDisplays(); draw(); });
 
 /* Scale controls */
 scaleDec.addEventListener('click', ()=>{ state.scale = Math.max(0.01, +(state.scale - SCALE_STEP_FINE).toFixed(3)); setDisplays(); draw(); });
 scaleInc.addEventListener('click', ()=>{ state.scale = +(state.scale + SCALE_STEP_FINE).toFixed(3); setDisplays(); draw(); });
 scaleRange.addEventListener('input', (e)=>{ state.scale = +e.target.value; setDisplays(); draw(); });
+resetScaleBtn.addEventListener('click', ()=>{ state.scale = fittedScale; setDisplays(); draw(); });
 
 /* Nudge */
-function nudge(dx,dy){ state.tx += dx; state.ty += dy; draw(); }
-upBtn.addEventListener('click', ()=> nudge(0, -Number(nudgePx.value||5)));
-downBtn.addEventListener('click', ()=> nudge(0, Number(nudgePx.value||5)));
-leftBtn.addEventListener('click', ()=> nudge(-Number(nudgePx.value||5), 0));
-rightBtn.addEventListener('click', ()=> nudge(Number(nudgePx.value||5), 0));
+function nudge(dx,dy){ state.tx += dx; state.ty += dy; setDisplays(); draw(); }
+resetXBtn.addEventListener('click', ()=>{ state.tx = 0; setDisplays(); draw(); });
+resetYBtn.addEventListener('click', ()=>{ state.ty = 0; setDisplays(); draw(); });
 
 /* Background */
-bgColor.addEventListener('input', (e)=>{ state.bgColor = e.target.value; draw(); });
+function updateBackgroundColor(color) {
+  bgColor.value = color;
+  state.bgColor = color;
+
+  bgColorSwatch.style.backgroundColor = color;
+  bgColorSwatch.title = color;
+  bgColorSwatch.setAttribute(
+    'aria-label',
+    `Current background color: ${color}`
+  );
+
+  draw();
+}
+
+/* Open the browser's native color picker */
+customColorBtn.addEventListener('click', () => {
+  bgColor.click();
+});
+
+/* Update color as user selects it */
+bgColor.addEventListener('input', (e) => {
+  updateBackgroundColor(e.target.value);
+});
+
+/* Reset to default white */
+resetBgColorBtn.addEventListener('click', () => {
+  updateBackgroundColor('#ffffff');
+});
 
 /* Vector guide */
-vectorOpacity.addEventListener('input', (e)=>{ state.vectorOpacity = parseFloat(e.target.value); vectorVal.textContent = state.vectorOpacity.toFixed(2); draw(); });
 // toggleVector.addEventListener('click', ()=>{ state.vectorOn = !state.vectorOn; toggleVector.textContent = state.vectorOn ? 'Hide guide' : 'Show guide'; draw(); });
 
 maskOutput.addEventListener('change', (e)=>{
@@ -561,10 +856,12 @@ preview.addEventListener('pointerdown', (e)=>{
 });
 preview.addEventListener('pointermove', (e)=>{
   if (!dragging || !dragStart) return;
-  const dx = (e.clientX - dragStart.x);
-  const dy = (e.clientY - dragStart.y);
+  const rect = preview.getBoundingClientRect();
+  const dx = (e.clientX - dragStart.x) * canvasSize / rect.width;
+  const dy = (e.clientY - dragStart.y) * canvasSize / rect.height;
   state.tx = dragStart.tx + dx;
   state.ty = dragStart.ty + dy;
+  setDisplays();
   draw();
 });
 preview.addEventListener('pointerup', (e)=>{ if (!dragging) return; dragging=false; try{ preview.releasePointerCapture(e.pointerId); }catch(_){} preview.style.cursor='grab'; });
@@ -572,10 +869,13 @@ preview.addEventListener('pointercancel', ()=>{ dragging=false; preview.style.cu
 
 /* Keyboard shortcuts: arrows to nudge, Cmd/Ctrl + ,/. to rotate fine */
 window.addEventListener('keydown', (ev)=>{
-  if (ev.key === 'ArrowUp'){ nudge(0,-Number(nudgePx.value||5)); ev.preventDefault(); }
-  if (ev.key === 'ArrowDown'){ nudge(0,Number(nudgePx.value||5)); ev.preventDefault(); }
-  if (ev.key === 'ArrowLeft'){ nudge(-Number(nudgePx.value||5),0); ev.preventDefault(); }
-  if (ev.key === 'ArrowRight'){ nudge(Number(nudgePx.value||5),0); ev.preventDefault(); }
+  const target = ev.target;
+  const isFormControl = target instanceof HTMLElement &&
+    (target.matches('input, select, textarea, button') || target.isContentEditable);
+  if (!isFormControl && ev.key === 'ArrowUp'){ nudge(0,-1); ev.preventDefault(); }
+  if (!isFormControl && ev.key === 'ArrowDown'){ nudge(0,1); ev.preventDefault(); }
+  if (!isFormControl && ev.key === 'ArrowLeft'){ nudge(-1,0); ev.preventDefault(); }
+  if (!isFormControl && ev.key === 'ArrowRight'){ nudge(1,0); ev.preventDefault(); }
   if ((ev.ctrlKey||ev.metaKey) && ev.key === ','){ state.angleDeg = +(state.angleDeg - ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); ev.preventDefault(); }
   if ((ev.ctrlKey||ev.metaKey) && ev.key === '.'){ state.angleDeg = +(state.angleDeg + ROT_STEP_FINE).toFixed(1); setDisplays(); draw(); ev.preventDefault(); }
 });
