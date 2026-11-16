@@ -38,24 +38,6 @@ Sub FixSingleWordLines()
     Next para
 End Sub
 
-Sub FixSingleWordLines_macOS()
-    Dim para As Paragraph
-    Dim searchRange As Range
-
-    ' Loop through each paragraph in the active document
-    For Each para In ActiveDocument.Paragraphs
-        If Len(para.Range.Text) > 2 Then
-            If ParagraphHasMultipleLines(para) Then
-                Set searchRange = para.Range
-                searchRange.MoveEnd unit:=wdCharacter, Count:=-1
-                If Not ReplaceLastSpaceWithNbsp(searchRange) Then
-                    Debug.Print "No eligible space found"
-                End If
-            End If
-        End If
-    Next para
-End Sub
-
 Function ReplaceLastSpaceWithNbsp(ByVal searchRange As Range) As Boolean
     Dim i As Long
     Dim currentChar As String

@@ -1,4 +1,4 @@
-Sub CandidateName()
+Sub Resume_PopulateCandidateName()
 
   ' Define variables
   Dim nPageNum As Integer
