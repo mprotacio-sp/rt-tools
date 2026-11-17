@@ -13,9 +13,15 @@
 .app{
   display:flex;
   flex-direction:column;
-  gap:20px;
+  gap:14px;
   width:100%;
   max-width:1072px;
+}
+.input-panel{
+  background:var(--panel);
+  padding:16px;
+  border-radius:12px;
+  box-shadow:0 6px 22px rgba(15,23,42,0.06);
 }
 .canvas-wrap{
   background:#d9d9d9;
@@ -28,15 +34,12 @@
   padding:16px;
   border-radius:12px;
   box-shadow:0 6px 22px rgba(15,23,42,0.06);
-  height:fit-content;
 }
   canvas{width:300px;height:300px;background:transparent;border-radius:8px;display:block;cursor:grab;}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
   button, input[type="color"], select{padding:8px 10px;border-radius:8px;border:1px solid #e6e7ea;background:white;cursor:pointer;}
   .btn {display:inline-flex;align-items:center;gap:8px}
   .small{font-size:13px;padding:6px 8px}
-  .control-section{padding:14px 0;border-top:1px solid #e6e7ea}
-  .control-section:first-of-type{border-top:0;padding-top:0}
 .native-color-input {
   position: absolute;
   width: 1px;
@@ -65,7 +68,7 @@
   background:#fff;
   min-height:290px;
   box-sizing:border-box;
-  padding:  48px 96px 96px 96px ;
+  padding:48px 96px 0;
   border:1px solid #c9c9c9;
   box-shadow:0 1px 2px rgba(0,0,0,.08);
   font-family: Roboto, Arial, sans-serif;
@@ -163,34 +166,54 @@
   .controls h3{margin:0 0 8px 0;font-size:16px}
   input[type=file]{display:none}
   .numeric{width:80px;padding:6px;border-radius:6px;border:1px solid #e6e7ea}
-  .inline-label{margin:0;min-width:76px}
+  .inline-label{margin:0;min-width:22px}
   .offset-value{width:64px}
-  .section-description{font-size:13px;line-height:1.45;color:var(--muted);margin:0 0 12px}
   .status{font-size:12px;color:#b42318;min-height:1em;margin-top:6px}
-  .input-layout .section-description{margin:0 0 12px}
   .input-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   .input-actions .btn{justify-content:center}
   .input-actions #clearBtn{margin-left:auto}
   .input-actions .status{margin:0 0 0 8px;max-width:180px}
-  .transform-steps{display:flex;flex-direction:column;gap:12px}
-  .transform-step+.transform-step{border-top:1px solid #e6e7ea;padding-top:12px}
-  .transform-step h4{font-size:14px;margin:0 0 4px}
-  .transform-step .section-description{margin-bottom:8px}
-  .transform-position{display:flex;flex-direction:column;gap:8px}
-  .correction-layout{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center}
-  .correction-copy .section-description{margin-bottom:0}
-  .correction-actions{display:flex;align-items:center;gap:8px}
-  .export-options{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:12px}
+  .tool-grid{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px}
+  .tool-grid::before,.tool-grid::after{content:"";position:absolute;top:0;bottom:0;border-left:1px solid #e6e7ea;pointer-events:none}
+  .tool-grid::before{left:calc(33.333333% - 3.333px)}
+  .tool-grid::after{left:calc(66.666667% + 3.333px)}
+  .tool-group{position:relative;min-width:0}
+  .input-panel,.export-section{position:relative}
+  .tool-group h4,.section-heading{display:flex;align-items:center;gap:6px;font-size:14px;margin:0 0 8px}
+  .position-fields{display:flex;flex-direction:column;gap:10px}
+  .position-fields .row{gap:6px}
+  .correction-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .help{position:static;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);font-family:inherit;font-size:14px;font-weight:600;line-height:1;cursor:help}
+  .help-tip{position:absolute;z-index:2;top:28px;left:0;box-sizing:border-box;width:min(280px,calc(100vw - 64px));padding:8px 10px;border-radius:6px;background:#1f2937;color:#fff;font:400 12px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;text-align:left;box-shadow:0 4px 12px rgba(0,0,0,.18);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none}
+  .tool-group:nth-child(3n) .help-tip{right:0;left:auto}
+  .input-panel .help-tip{top:40px}
+  .export-section .help-tip{top:40px}
+  .help:hover .help-tip,.help:focus-visible .help-tip{opacity:1;visibility:visible;transform:translateY(0)}
+  .help:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .export-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .export-options{display:flex;align-items:center;gap:16px;flex:1 1 auto;flex-wrap:wrap;margin:0}
   .export-options .inline-label{min-width:0}
-  .export-options label.row{margin:0}
-  .export-actions{display:flex;gap:8px;align-items:center}
-  @media(max-width:1120px){
-    .app{grid-template-columns:332px minmax(0,1fr)}
-  }
-  @media(max-width:900px){
+  .export-options label.row{margin:0;white-space:nowrap}
+  .export-actions{display:flex;gap:8px;align-items:center;margin-left:auto}
+  .export-section{border-top:1px solid #e6e7ea;margin-top:16px;padding-top:14px}
+  @media(max-width:760px){
     body{padding:16px}
-    .app{grid-template-columns:1fr;max-width:720px}
-    .controls{max-height:none;overflow:visible}
+    .tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .tool-grid::before{left:50%}
+    .tool-grid::after{display:none}
+    .tool-group:nth-child(3n) .help-tip{right:auto;left:0}
+    .tool-group:nth-child(2n) .help-tip{right:0;left:auto}
+  }
+  @media(max-width:520px){
+    .tool-grid{grid-template-columns:1fr}
+    .tool-grid::before{display:none}
+    .tool-group:nth-child(3n) .help-tip{right:auto;left:0}
+    .tool-group:nth-child(2n) .help-tip{right:auto;left:0}
+    .document-preview{padding:32px 24px 0}
+    .document-meta{margin-bottom:24px}
+    .candidate-block{grid-template-columns:100px 1fr}
+    .headshot-cell,#preview{width:100px;height:100px}
+    .candidate-name{font-size:28px}
   }
 </style>
 
@@ -209,6 +232,19 @@
     <p>Use this tool to crop image to a circle. Upload or paste an image, then position and adjust it in the preview before exporting.</p>
   </header>
   <div class="app" role="application" aria-label="Headshot framer">
+    <section class="input-panel" aria-labelledby="inputHeading">
+      <h3 id="inputHeading" class="section-heading">INPUT
+        <button class="help" type="button" aria-label="Input help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">Upload or paste an image to begin. You can also drag an image onto the preview.</span></button>
+      </h3>
+      <div class="input-actions">
+        <button id="uploadBtn" class="btn small" type="button">Upload image</button>
+        <button id="pasteBtn" class="btn small" type="button">Paste image</button>
+        <button id="clearBtn" class="btn small" type="button">Clear</button>
+        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp">
+        <p id="pasteStatus" class="status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <div class="canvas-wrap">
       <div class="document-preview">
 
@@ -253,114 +289,89 @@
     </div>
 
     <aside class="controls" aria-label="Controls">
-      <section class="control-section" aria-labelledby="inputHeading">
-        <h3 id="inputHeading">INPUT</h3>
-        <div class="input-layout">
-          <p class="section-description">Upload or paste an image to begin.</p>
-          <div class="input-actions">
-            <button id="uploadBtn" class="btn small" type="button">Upload image</button>
-            <button id="pasteBtn" class="btn small" type="button" title="Paste an image from the clipboard">Paste image</button>
-            <button id="clearBtn" class="btn small" type="button" title="Clear the image and reset all settings">Clear</button>
-            <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp">
-            <p id="pasteStatus" class="status" role="status" aria-live="polite"></p>
-          </div>
-        </div>
-      </section>
-
-      <section class="control-section" aria-labelledby="transformHeading">
-        <h3 id="transformHeading">TRANSFORM</h3>
-        <div class="transform-steps">
-          <div class="transform-step">
-            <h4>1. Zoom</h4>
-            <p class="section-description">Roughly center the image by dragging. Zoom to fit the face to the silhouette outline.</p>
+      <div class="tool-grid" aria-label="Image tools">
+          <section class="tool-group" aria-labelledby="scaleHeading">
+            <h4 id="scaleHeading">Scale
+              <button class="help" type="button" aria-label="Scale help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">Roughly center the image by dragging. Zoom to fit the face to the silhouette outline.</span></button>
+            </h4>
             <div class="row transform-row">
               <button id="scaleDec" class="small">−</button>
               <button id="scaleInc" class="small">+</button>
               <input id="scaleDisplay" class="numeric" readonly value="1.00">
               <input id="scaleRange" type="range" min="0.1" max="10" step="0.01" style="flex:1">
-              <button id="resetScaleBtn" class="small" type="button" title="Reset scale to the fitted size">Reset</button>
+              <button id="resetScaleBtn" class="small" type="button" aria-label="Reset scale to the fitted size" title="Reset scale to the fitted size">↺</button>
             </div>
-          </div>
-          <div class="transform-step">
-            <h4>2. Rotate</h4>
-            <p class="section-description">When rotating, if the background contains strong vertical or horizontal lines, try to keep them vertical or horizontal rather than straightening the subject's face.</p>
+          </section>
+          <section class="tool-group" aria-labelledby="xHeading">
+            <h4 id="xHeading">X
+              <button class="help" type="button" aria-label="Horizontal position help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">The horizontal offset in pixels. Drag the image or use the arrow keys to reposition it.</span></button>
+            </h4>
+            <div class="position-fields">
+              <div class="row">
+                <input id="offsetX" class="numeric offset-value" readonly value="0.0" aria-label="Horizontal offset in pixels">
+                <span>px</span>
+                <button id="resetXBtn" class="small" type="button" title="Reset horizontal offset">Reset</button>
+              </div>
+            </div>
+          </section>
+          <section class="tool-group" aria-labelledby="backgroundHeading">
+            <h4 id="backgroundHeading">Extend background
+              <button class="help" type="button" aria-label="Extend background help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">If the photo edge shows inside the circular frame, choose a neutral color or use the eyedropper to sample the photo background. This color fills transparent areas behind the photo.</span></button>
+            </h4>
+            <div class="correction-actions">
+              <button id="customColorBtn" class="btn small" type="button">Select custom color</button>
+              <span id="bgColorSwatch" class="color-swatch" title="#ffffff" aria-label="Current background color: #ffffff"></span>
+              <input id="bgColor" type="color" value="#ffffff" aria-label="Choose background color" class="native-color-input">
+              <button id="resetBgColorBtn" class="small" type="button">Reset</button>
+            </div>
+          </section>
+          <section class="tool-group" aria-labelledby="rotateHeading">
+            <h4 id="rotateHeading">Rotate
+              <button class="help" type="button" aria-label="Rotation help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">When rotating, keep strong vertical or horizontal background lines aligned rather than straightening the subject's face.</span></button>
+            </h4>
             <div class="row transform-row">
               <button id="rotDec" class="small"><</button>
               <button id="rotInc" class="small">></button>
               <input id="rotDisplay" class="numeric" readonly value="0.0°" aria-label="Rotation in degrees">
               <input id="rotRange" type="range" min="-180" max="180" step="1" style="flex:1">
-              <button id="resetRotationBtn" class="small" type="button" title="Reset rotation">Reset</button>
+              <button id="resetRotationBtn" class="small" type="button" aria-label="Reset rotation" title="Reset rotation">↺</button>
             </div>
-          </div>
-          <div class="transform-step">
-            <h4>3. Transform</h4>
-            <p class="section-description">Reposition the image by dragging with the mouse, or use the arrow keys to nudge it one pixel at a time.</p>
-            <div class="transform-position">
+          </section>
+          <section class="tool-group" aria-labelledby="yHeading">
+            <h4 id="yHeading">Y
+              <button class="help" type="button" aria-label="Vertical position help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">The vertical offset in pixels. Drag the image or use the arrow keys to reposition it.</span></button>
+            </h4>
+            <div class="position-fields">
               <div class="row">
-                <label class="inline-label" for="offsetX">X (px)</label>
-                <input id="offsetX" class="numeric offset-value" readonly value="0.0">
-                <button id="resetXBtn" class="small" type="button" title="Reset horizontal offset">Reset</button>
-              </div>
-              <div class="row">
-                <label class="inline-label" for="offsetY">Y (px)</label>
-                <input id="offsetY" class="numeric offset-value" readonly value="0.0">
+                <input id="offsetY" class="numeric offset-value" readonly value="0.0" aria-label="Vertical offset in pixels">
+                <span>px</span>
                 <button id="resetYBtn" class="small" type="button" title="Reset vertical offset">Reset</button>
               </div>
             </div>
+          </section>
+      </div>
+
+      <section class="export-section" aria-labelledby="exportHeading">
+        <h3 id="exportHeading" class="section-heading">EXPORT SETTINGS
+          <button class="help" type="button" aria-label="Export settings help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">Choose the output dimensions and whether to crop the exported image to a circle with transparency outside it.</span></button>
+        </h3>
+        <div class="export-toolbar">
+          <div class="export-options">
+            <label for="exportSize" class="inline-label">Export size</label>
+            <select id="exportSize" class="numeric" style="width:fit-content">
+              <option value="600">600 × 600 (default)</option>
+              <option value="300">300 × 300</option>
+              <option value="1200">1200 × 1200</option>
+            </select>
+            <label class="row" for="maskOutput">
+              <input id="maskOutput" type="checkbox" checked>
+              Mask output to circle (transparent outside)
+            </label>
           </div>
-        </div>
-      </section>
-
-      <section class="control-section" aria-labelledby="correctionsHeading">
-        <h3 id="correctionsHeading">CORRECTIONS</h3>
-        <div class="correction-layout">
-          <div class="correction-copy">
-            <p class="section-description">If the photo edge shows inside the circular frame, choose a neutral color or use the eyedropper to sample the photo background. This color fills transparent areas behind the photo.</p>
+          <div class="export-actions">
+            <button id="copyBtn" class="btn small">Copy to clipboard</button>
+            <button id="downloadBtn" class="btn small">Download PNG</button>
           </div>
-          <div class="correction-actions">
-            <button id="customColorBtn" class="btn small" type="button">
-              Select custom color
-            </button>
-
-            <span
-              id="bgColorSwatch"
-              class="color-swatch"
-              title="#ffffff"
-              aria-label="Current background color: #ffffff">
-            </span>
-            
-            <!-- Keep the native color input, but hide it visually -->
-            <input
-            id="bgColor"
-            type="color"
-            value="#ffffff"
-            aria-label="Choose background color"
-            class="native-color-input">
-
-            <button id="resetBgColorBtn" class="small" type="button">
-              Reset
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section class="control-section" aria-labelledby="exportHeading">
-        <h3 id="exportHeading">EXPORT SETTINGS</h3>
-        <div class="export-options">
-          <label for="exportSize" class="inline-label">Export size</label>
-          <select id="exportSize" class="numeric" style="width:fit-content">
-            <option value="600">600 × 600 (default)</option>
-            <option value="300">300 × 300</option>
-            <option value="1200">1200 × 1200</option>
-          </select>
-          <label class="row" for="maskOutput" style="margin-bottom:8px">
-            <input id="maskOutput" type="checkbox" checked>
-            Mask output to circle (transparent outside)
-          </label>
-        </div>
-        <div class="export-actions">
-          <button id="copyBtn" class="btn small">Copy to clipboard</button>
-          <button id="downloadBtn" class="btn small">Download PNG</button>
         </div>
       </section>
     </aside>
