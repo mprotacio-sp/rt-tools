@@ -229,12 +229,12 @@
 <main class="page">
   <header class="page-header">
     <h1>Headshot Framer Tool</h1>
-    <p>Use this tool to crop image to a circle. Upload or paste an image, then position and adjust it in the preview before exporting.</p>
+    <p>Use this tool to crop image to a circle. Upload, paste, or drag an image into the window, then position and adjust it in the preview before exporting.</p>
   </header>
   <div class="app" role="application" aria-label="Headshot framer">
     <section class="input-panel" aria-labelledby="inputHeading">
       <h3 id="inputHeading" class="section-heading">INPUT
-        <button class="help" type="button" aria-label="Input help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">Upload or paste an image to begin. You can also drag an image onto the preview.</span></button>
+        <button class="help" type="button" aria-label="Input help"><span aria-hidden="true">ⓘ</span><span class="help-tip" role="tooltip">Upload or paste an image to begin. You can also drag an image anywhere into the window.</span></button>
       </h3>
       <div class="input-actions">
         <button id="uploadBtn" class="btn small" type="button">Upload image</button>
@@ -369,7 +369,7 @@
             </label>
           </div>
           <div class="export-actions">
-            <button id="copyBtn" class="btn small">Copy to clipboard</button>
+            <button id="copyBtn" class="btn small" type="button" aria-live="polite">Copy to clipboard</button>
             <button id="downloadBtn" class="btn small">Download PNG</button>
           </div>
         </div>
@@ -434,6 +434,8 @@ const maskOutput = document.getElementById('maskOutput');
 const downloadBtn = document.getElementById('downloadBtn');
 const copyBtn = document.getElementById('copyBtn');
 const exportSize = document.getElementById('exportSize');
+const copyBtnLabel = copyBtn.textContent;
+let copyFeedbackTimeout;
 
 /* STATE */
 let srcBitmap = null; // ImageBitmap (fast to draw)
@@ -752,18 +754,28 @@ window.addEventListener('paste', async (ev) => {
   }
 });
 
-/* Drag & drop */
-preview.addEventListener('dragover', (e)=>{ e.preventDefault(); preview.style.opacity = 0.9; });
-preview.addEventListener('dragleave', ()=>{ preview.style.opacity = 1; });
-preview.addEventListener('drop', async (e)=>{
-  e.preventDefault(); preview.style.opacity = 1;
-  const f = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (!f) return;
+/* Accept image files dragged from Explorer anywhere in the window. */
+window.addEventListener('dragover', (e)=>{
+  if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') !== -1) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }
+});
+window.addEventListener('drop', async (e)=>{
+  if (!e.dataTransfer) return;
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') === -1 && !file) return;
+  e.preventDefault();
+  if (!file) return;
   try {
-    const bmp = await loadImageFileToBitmap(f);
+    const bmp = await loadImageFileToBitmap(file);
+    if (srcBitmap && typeof srcBitmap.close === 'function') srcBitmap.close();
     srcBitmap = bmp;
+    pasteStatus.textContent = '';
     fitBitmapToFrame(srcBitmap);
-  } catch(err){ alert('Failed to load dropped image: ' + err); }
+  } catch(err){
+    pasteStatus.textContent = 'Failed to load dropped image: ' + (err && err.message ? err.message : String(err));
+  }
 });
 
 /* Fit & reset */
@@ -834,6 +846,10 @@ downloadBtn.addEventListener('click', async ()=>{
 
 copyBtn.addEventListener('click', async () => {
   const size = Number(exportSize.value) || 600;
+  clearTimeout(copyFeedbackTimeout);
+  copyBtn.disabled = true;
+  copyBtn.textContent = 'Copying…';
+  copyBtn.title = '';
 
   try {
     // 1. Create the ClipboardItem immediately. 
@@ -849,10 +865,21 @@ copyBtn.addEventListener('click', async () => {
     // 2. Write to the clipboard immediately
     await navigator.clipboard.write([item]);
     
-    alert('Copied PNG to clipboard.');
+    copyBtn.textContent = 'Copied!';
+    copyFeedbackTimeout = setTimeout(() => {
+      copyBtn.textContent = copyBtnLabel;
+      copyBtn.disabled = false;
+    }, 2000);
   } catch (err) {
     console.error(err);
-    alert('Copy failed: ' + err.message);
+    const message = err && err.message ? err.message : String(err);
+    copyBtn.textContent = 'Copy failed';
+    copyBtn.title = message;
+    copyFeedbackTimeout = setTimeout(() => {
+      copyBtn.textContent = copyBtnLabel;
+      copyBtn.title = '';
+      copyBtn.disabled = false;
+    }, 4000);
   }
 });
 
